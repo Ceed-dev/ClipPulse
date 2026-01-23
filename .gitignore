@@ -1,0 +1,19 @@
+# Clasp
+.clasp.json
+
+# Environment / Secrets
+.env
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node (if using for local testing)
+node_modules/

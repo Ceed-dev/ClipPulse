@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClipPulse - Short-Video Trend Collector</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.5;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--gray-900);
+    }
+
+    .subtitle {
+      color: var(--gray-500);
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--gray-700);
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--gray-700);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    textarea::placeholder {
+      color: var(--gray-500);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--gray-100);
+      color: var(--gray-700);
+    }
+
+    .btn-secondary:hover {
+      background: var(--gray-200);
+    }
+
+    .status-panel {
+      display: none;
+    }
+
+    .status-panel.visible {
+      display: block;
+    }
+
+    .status-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .status-badge.planning {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .status-badge.running {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .status-badge.completed {
+      background: #d1fae5;
+      color: #047857;
+    }
+
+    .status-badge.failed {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .run-id {
+      font-family: monospace;
+      font-size: 13px;
+      color: var(--gray-500);
+    }
+
+    .progress-section {
+      margin-bottom: 16px;
+    }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .progress-row:last-child {
+      border-bottom: none;
+    }
+
+    .progress-label {
+      font-size: 14px;
+      color: var(--gray-700);
+    }
+
+    .progress-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-900);
+    }
+
+    .progress-bar {
+      width: 120px;
+      height: 6px;
+      background: var(--gray-200);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-left: 12px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      transition: width 0.3s ease;
+    }
+
+    .message-box {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+
+    .message-box.info {
+      background: var(--gray-100);
+      color: var(--gray-700);
+    }
+
+    .message-box.error {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .spreadsheet-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--gray-100);
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--primary);
+      font-weight: 500;
+      margin-top: 16px;
+      transition: background 0.2s;
+    }
+
+    .spreadsheet-link:hover {
+      background: var(--gray-200);
+    }
+
+    .examples {
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--gray-50);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .examples-title {
+      font-weight: 500;
+      color: var(--gray-700);
+      margin-bottom: 8px;
+    }
+
+    .examples ul {
+      list-style: none;
+      color: var(--gray-500);
+    }
+
+    .examples li {
+      padding: 4px 0;
+    }
+
+    .examples li::before {
+      content: '"';
+      color: var(--gray-400);
+    }
+
+    .examples li::after {
+      content: '"';
+      color: var(--gray-400);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--gray-300);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>ClipPulse</h1>
+  <p class="subtitle">Short-Video Trend Collector</p>
+
+  <!-- Input Section -->
+  <div class="card" id="inputSection">
+    <div class="card-title">Collection Instruction</div>
+    <label for="instruction">Enter your instruction in natural language:</label>
+    <textarea
+      id="instruction"
+      placeholder="e.g., Find 50 posts about skincare trends"
+    ></textarea>
+
+    <div class="examples">
+      <div class="examples-title">Examples:</div>
+      <ul>
+        <li>Find 50 posts about skincare trends</li>
+        <li>Collect TikTok only, 100 posts, US region</li>
+        <li>Focus on fitness creators, last 7 days</li>
+        <li>#minimalism #lifestyle 30 posts each platform</li>
+      </ul>
+    </div>
+
+    <div class="action-buttons">
+      <button class="btn btn-primary" id="executeBtn" onclick="startCollection()">
+        Execute
+      </button>
+    </div>
+  </div>
+
+  <!-- Status Section -->
+  <div class="card status-panel" id="statusPanel">
+    <div class="status-header">
+      <span class="status-badge" id="statusBadge">Planning</span>
+      <span class="run-id" id="runIdDisplay"></span>
+    </div>
+
+    <div class="progress-section">
+      <div class="progress-row">
+        <span class="progress-label">Instagram</span>
+        <div style="display: flex; align-items: center;">
+          <span class="progress-value" id="igProgress">0 / 0</span>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" id="igProgressBar" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">TikTok</span>
+        <div style="display: flex; align-items: center;">
+          <span class="progress-value" id="ttProgress">0 / 0</span>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" id="ttProgressBar" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="message-box info" id="messageBox"></div>
+
+    <a class="spreadsheet-link hidden" id="spreadsheetLink" href="#" target="_blank">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+        <polyline points="10 9 9 9 8 9"></polyline>
+      </svg>
+      Open Spreadsheet
+    </a>
+
+    <div class="action-buttons">
+      <button class="btn btn-secondary" id="newRunBtn" onclick="resetUI()">
+        New Collection
+      </button>
+      <button class="btn btn-secondary hidden" id="cancelBtn" onclick="cancelCollection()">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let currentRunId = null;
+    let pollingInterval = null;
+
+    function startCollection() {
+      const instruction = document.getElementById('instruction').value.trim();
+
+      if (!instruction) {
+        alert('Please enter an instruction');
+        return;
+      }
+
+      const executeBtn = document.getElementById('executeBtn');
+      executeBtn.disabled = true;
+      executeBtn.innerHTML = '<span class="spinner"></span>Starting...';
+
+      google.script.run
+        .withSuccessHandler(onRunStarted)
+        .withFailureHandler(onError)
+        .startRun(instruction);
+    }
+
+    function onRunStarted(result) {
+      currentRunId = result.runId;
+
+      // Show status panel
+      document.getElementById('statusPanel').classList.add('visible');
+      document.getElementById('runIdDisplay').textContent = result.runId;
+
+      // Show spreadsheet link
+      if (result.spreadsheetUrl) {
+        const link = document.getElementById('spreadsheetLink');
+        link.href = result.spreadsheetUrl;
+        link.classList.remove('hidden');
+      }
+
+      // Show cancel button
+      document.getElementById('cancelBtn').classList.remove('hidden');
+
+      // Reset execute button
+      const executeBtn = document.getElementById('executeBtn');
+      executeBtn.disabled = false;
+      executeBtn.textContent = 'Execute';
+
+      // Hide input section
+      document.getElementById('inputSection').style.display = 'none';
+
+      // Start polling
+      startPolling();
+
+      updateStatusDisplay({
+        status: result.status,
+        instagramCollected: 0,
+        instagramTarget: result.plan?.targetCounts?.instagram || 0,
+        tiktokCollected: 0,
+        tiktokTarget: result.plan?.targetCounts?.tiktok || 0,
+        lastMessage: 'Starting collection...'
+      });
+    }
+
+    function startPolling() {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+
+      pollingInterval = setInterval(pollStatus, 3000);
+    }
+
+    function pollStatus() {
+      if (!currentRunId) {
+        stopPolling();
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(updateStatusDisplay)
+        .withFailureHandler(onPollError)
+        .getRunStatus(currentRunId);
+    }
+
+    function updateStatusDisplay(status) {
+      if (!status) return;
+
+      // Update status badge
+      const badge = document.getElementById('statusBadge');
+      badge.textContent = formatStatus(status.status);
+      badge.className = 'status-badge ' + getStatusClass(status.status);
+
+      // Update progress
+      const igTarget = status.instagramTarget || 0;
+      const ttTarget = status.tiktokTarget || 0;
+
+      document.getElementById('igProgress').textContent =
+        `${status.instagramCollected || 0} / ${igTarget}`;
+      document.getElementById('ttProgress').textContent =
+        `${status.tiktokCollected || 0} / ${ttTarget}`;
+
+      // Update progress bars
+      const igPercent = igTarget > 0 ? (status.instagramCollected / igTarget) * 100 : 0;
+      const ttPercent = ttTarget > 0 ? (status.tiktokCollected / ttTarget) * 100 : 0;
+
+      document.getElementById('igProgressBar').style.width = Math.min(igPercent, 100) + '%';
+      document.getElementById('ttProgressBar').style.width = Math.min(ttPercent, 100) + '%';
+
+      // Update message
+      const messageBox = document.getElementById('messageBox');
+      if (status.lastError) {
+        messageBox.className = 'message-box error';
+        messageBox.textContent = status.lastError;
+      } else {
+        messageBox.className = 'message-box info';
+        messageBox.textContent = status.lastMessage || 'Processing...';
+      }
+
+      // Check if completed or failed
+      if (status.status === 'COMPLETED' || status.status === 'FAILED') {
+        stopPolling();
+        document.getElementById('cancelBtn').classList.add('hidden');
+      }
+    }
+
+    function formatStatus(status) {
+      const map = {
+        'CREATED': 'Starting',
+        'PLANNING': 'Planning',
+        'RUNNING_INSTAGRAM': 'Collecting Instagram',
+        'RUNNING_TIKTOK': 'Collecting TikTok',
+        'FINALIZING': 'Finalizing',
+        'COMPLETED': 'Completed',
+        'FAILED': 'Failed'
+      };
+      return map[status] || status;
+    }
+
+    function getStatusClass(status) {
+      if (status === 'COMPLETED') return 'completed';
+      if (status === 'FAILED') return 'failed';
+      if (status === 'PLANNING' || status === 'CREATED') return 'planning';
+      return 'running';
+    }
+
+    function stopPolling() {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+    }
+
+    function resetUI() {
+      stopPolling();
+      currentRunId = null;
+
+      document.getElementById('inputSection').style.display = 'block';
+      document.getElementById('statusPanel').classList.remove('visible');
+      document.getElementById('spreadsheetLink').classList.add('hidden');
+      document.getElementById('cancelBtn').classList.add('hidden');
+      document.getElementById('instruction').value = '';
+
+      const executeBtn = document.getElementById('executeBtn');
+      executeBtn.disabled = false;
+      executeBtn.textContent = 'Execute';
+    }
+
+    function cancelCollection() {
+      if (!currentRunId) return;
+
+      if (!confirm('Are you sure you want to cancel this collection?')) {
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          updateStatusDisplay({
+            status: 'FAILED',
+            lastError: 'Cancelled by user'
+          });
+        })
+        .withFailureHandler(onError)
+        .cancelRun(currentRunId);
+    }
+
+    function onError(error) {
+      console.error('Error:', error);
+      alert('Error: ' + error.message);
+
+      const executeBtn = document.getElementById('executeBtn');
+      executeBtn.disabled = false;
+      executeBtn.textContent = 'Execute';
+    }
+
+    function onPollError(error) {
+      console.error('Poll error:', error);
+      // Don't stop polling on transient errors
+    }
+  </script>
+</body>
+</html>
