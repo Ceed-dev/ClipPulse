@@ -1,7 +1,7 @@
 # ClipPulse — Specification (Short-Video Trend Collector)
 
-**Document version:** 1.0
-**Last updated:** 2026-01-22
+**Document version:** 1.0<br>
+**Last updated:** 2026-01-22<br>
 **Status:** Final (implementation-ready)
 
 ---
