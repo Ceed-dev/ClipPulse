@@ -34,20 +34,13 @@ The following data can be deleted upon request:
 4. Find "ClipPulse" and click **Remove**
 5. Confirm the removal to revoke all access
 
-**Revoke TikTok Access (if applicable):**
-
-1. Open TikTok and go to your Profile
-2. Tap the menu icon (☰) and select **Settings and privacy**
-3. Go to **Security** → **Manage app permissions**
-4. Find "ClipPulse" and revoke access
-
 ### Option 2: Request Deletion via Email
 
 If you prefer, you can request that we delete your data on your behalf. Please send an email with the following information:
 
 - Subject: "ClipPulse Data Deletion Request"
 - Your name and email address associated with the service
-- The Instagram/TikTok username(s) connected to ClipPulse
+- The Instagram username connected to ClipPulse
 - Description of the data you want deleted
 
 > **Important:** We will process your deletion request within 30 days. You will receive a confirmation email once the deletion is complete.

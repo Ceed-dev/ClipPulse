@@ -181,51 +181,9 @@ function mockCreatePostArtifacts(platformFolderId, postId, postData, rawApiRespo
  * @returns {Object} Collection result
  */
 function collectTikTokWithMocks(runId, plan, onProgress) {
-  if (!isMockMode()) {
-    return collectTikTokVideos(runId, plan, onProgress);
-  }
-
-  console.log('MOCK MODE: Simulating TikTok collection');
-
-  const state = loadRunState(runId);
-  const targetCount = plan.targetCounts.tiktok || 0;
-
-  if (targetCount === 0) {
-    return { collected: 0, skipped: 0 };
-  }
-
-  const mockVideos = generateMockTikTokVideos(targetCount, plan);
-  const postsToWrite = [];
-
-  for (const video of mockVideos) {
-    const videoId = String(video.id);
-
-    if (isPostProcessed(runId, 'tiktok', videoId)) {
-      continue;
-    }
-
-    const artifactResult = mockCreatePostArtifacts(
-      state.tiktokFolderId,
-      videoId,
-      { create_username: video.username },
-      video,
-      'tiktok'
-    );
-
-    const normalizedPost = normalizeTikTokPost(video, artifactResult.driveUrl, 'MOCK DATA');
-    postsToWrite.push(normalizedPost);
-    addProcessedPostId(runId, 'tiktok', videoId);
-  }
-
-  // Write to spreadsheet
-  appendRowsBatch(state.spreadsheetId, 'tiktok', postsToWrite);
-  updateTikTokProgress(runId, { collected: postsToWrite.length });
-
-  if (onProgress) {
-    onProgress({ platform: 'tiktok', collected: postsToWrite.length, target: targetCount });
-  }
-
-  return { collected: postsToWrite.length, skipped: 0 };
+  // TikTok collection is disabled - always return empty result
+  console.log('TikTok collection is disabled (Instagram-only mode)');
+  return { collected: 0, skipped: 0 };
 }
 
 /**
@@ -313,7 +271,7 @@ function runMockTest() {
   enableMockMode();
 
   try {
-    const result = startRun('TEST: Collect 10 posts about mock testing');
+    const result = startRun('TEST: Collect 10 Instagram posts about mock testing');
     console.log('Mock test started:', result.runId);
     console.log('Spreadsheet:', result.spreadsheetUrl);
 

@@ -45,14 +45,7 @@ Then go to **Project Settings > Script Properties** and add the following:
 | `CLIPPULSE_ROOT_FOLDER_ID` | Google Drive folder ID for storing artifacts (leave empty, will be auto-created) |
 | `OPENAI_API_KEY` | Your OpenAI API key |
 
-### TikTok Research API (if using)
-
-| Key | Description |
-|-----|-------------|
-| `TIKTOK_RESEARCH_CLIENT_KEY` | TikTok Research API client key |
-| `TIKTOK_RESEARCH_CLIENT_SECRET` | TikTok Research API client secret |
-
-### Instagram / Meta (if using)
+### Instagram / Meta (required)
 
 | Key | Description |
 |-----|-------------|
@@ -65,7 +58,7 @@ Then go to **Project Settings > Script Properties** and add the following:
 |-----|---------|-------------|
 | `OPENAI_MODEL` | `gpt-5.2-pro` | OpenAI model to use |
 | `META_GRAPH_API_VERSION` | `v18.0` | Instagram Graph API version |
-| `MAX_POSTS_PER_PLATFORM_DEFAULT` | `30` | Default posts per platform |
+| `MAX_POSTS_PER_PLATFORM_DEFAULT` | `30` | Default posts to collect |
 | `BATCH_SIZE` | `15` | Posts per batch |
 | `MAX_RETRIES` | `3` | Max API retry attempts |
 | `RETRY_BACKOFF_MS` | `1000` | Initial retry delay |
@@ -129,11 +122,6 @@ Make sure all required Script Properties are set correctly.
 1. Ensure your Meta app has the correct permissions
 2. Try running `resetMetaAuth()` and re-authorizing
 
-### TikTok API errors
-
-1. Verify your Research API access is approved
-2. Check that client key and secret are correct
-
 ### Drive errors
 
 1. Make sure the script has Drive permissions
@@ -146,13 +134,6 @@ Make sure all required Script Properties are set correctly.
 1. Go to https://platform.openai.com/api-keys
 2. Create a new API key
 3. Copy and save as `OPENAI_API_KEY`
-
-### TikTok Research API
-
-1. Go to https://developers.tiktok.com/
-2. Create a new project
-3. Apply for Research API access
-4. Once approved, get your client key and secret
 
 ### Meta (Instagram) Graph API
 

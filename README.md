@@ -8,9 +8,11 @@
 
 ## 1. Overview
 
-ClipPulse is an internal tool that collects and aggregates information from short vertical videos posted on Instagram and TikTok, then outputs the results into a single Google Spreadsheet per run, with one row per post and one column per metric.
+ClipPulse is an internal tool that collects and aggregates information from short vertical videos posted on Instagram, then outputs the results into a single Google Spreadsheet per run, with one row per post and one column per metric.
 
 The tool is designed for on-demand usage: data is fetched each time a human runs a query, not on a schedule.
+
+> **Note:** TikTok collection is currently disabled. The TikTok code is preserved for potential future use.
 
 ## 2. Purpose
 
@@ -23,7 +25,7 @@ Manual browsing and manual metric collection is possible but inefficient; ClipPu
 ### 3.1 What we collect
 
 **Target data:**
-- Posts on each platform (Instagram / TikTok)
+- Posts on Instagram
 - Video-related data associated with those posts
 - Metrics are retrieved only via official APIs.
 
@@ -42,7 +44,6 @@ The system interprets instructions, decides API parameters, and retrieves data.
 - Runs are triggered by human interaction only.
 - Each execution creates one brand-new Spreadsheet containing:
   - Tab 1: Instagram
-  - Tab 2: TikTok
 
 ### 3.4 Output format
 
@@ -101,9 +102,9 @@ This preserves the requirement: Drive URL exists and the video is watchable via 
 
 ### 5.3 External APIs
 
-- TikTok Research API (client credentials + client access token)
-- TikTok Display API (OAuth user token, optional fallback)
 - Instagram Graph API (Instagram API with Facebook Login; professional accounts)
+- TikTok Research API (disabled; code preserved for future use)
+- TikTok Display API (disabled; code preserved for future use)
 
 ### 5.4 AI/LLM
 
@@ -214,10 +215,9 @@ For each row, `drive_url` must point to the primary artifact:
 ### 9.1 Spreadsheet creation rules
 
 - Each execution creates one new spreadsheet
-- It contains exactly two tabs:
+- It contains one tab:
   - Instagram
-  - TikTok
-- Each tab has:
+- The tab has:
   - Header row (row 1)
   - Data rows starting at row 2
 - Columns are fixed and must not change across runs
@@ -230,7 +230,7 @@ These columns appear first in both tabs, in this order:
 3. `posted_at` (ISO 8601 UTC)
 4. `caption_or_description`
 
-### 9.3 TikTok tab columns (full order)
+### 9.3 TikTok tab columns (DISABLED - preserved for future use)
 
 | Column | Name | Type | Notes |
 |--------|------|------|-------|
@@ -302,9 +302,10 @@ Each run transitions through these states:
 1. `CREATED`
 2. `PLANNING` (LLM parses instruction into a plan)
 3. `RUNNING_INSTAGRAM`
-4. `RUNNING_TIKTOK`
-5. `FINALIZING`
-6. `COMPLETED` or `FAILED`
+4. `FINALIZING`
+5. `COMPLETED` or `FAILED`
+
+> **Note:** `RUNNING_TIKTOK` state is skipped (TikTok collection disabled).
 
 ### 10.2 Run planning (LLM-driven, structured)
 
@@ -570,9 +571,8 @@ For each post:
 A run is considered correct when:
 
 1. A user can open the Web App, submit an instruction, and start a run.
-2. A new spreadsheet is created for each run and contains exactly:
+2. A new spreadsheet is created for each run and contains:
    - Instagram tab
-   - TikTok tab
 3. Each collected post occupies exactly one row in the correct tab.
 4. Columns match the specified schema exactly (names + order).
 5. Each row contains a valid `drive_url` pointing to:

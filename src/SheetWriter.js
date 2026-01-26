@@ -84,16 +84,14 @@ function createRunSpreadsheet(runId) {
   const defaultSheet = spreadsheet.getSheets()[0];
   defaultSheet.setName('Instagram');
 
-  // Create TikTok sheet
-  const tiktokSheet = spreadsheet.insertSheet('TikTok');
+  // Note: TikTok sheet creation disabled - Instagram only mode
+  // const tiktokSheet = spreadsheet.insertSheet('TikTok');
 
-  // Add headers to both sheets
+  // Add headers to Instagram sheet
   writeHeaders(defaultSheet, INSTAGRAM_COLUMNS);
-  writeHeaders(tiktokSheet, TIKTOK_COLUMNS);
 
-  // Format header rows
+  // Format header row
   formatHeaderRow(defaultSheet, INSTAGRAM_COLUMNS.length);
-  formatHeaderRow(tiktokSheet, TIKTOK_COLUMNS.length);
 
   return {
     spreadsheetId: spreadsheetId,
@@ -337,8 +335,8 @@ function updateRowMemo(spreadsheetId, platform, rowIndex, memo) {
 function finalizeSpreadsheet(spreadsheetId) {
   const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
 
-  // Process each sheet
-  ['Instagram', 'TikTok'].forEach(sheetName => {
+  // Process Instagram sheet only (TikTok disabled)
+  ['Instagram'].forEach(sheetName => {
     const sheet = spreadsheet.getSheetByName(sheetName);
     if (sheet) {
       const lastCol = sheet.getLastColumn();

@@ -4,7 +4,7 @@
 
 ## 1. Introduction
 
-ClipPulse ("we", "our", or "the Service") is an internal tool developed by CEED, K.K. (株式会社Ceed) that collects and aggregates publicly available information from short-form video platforms (Instagram and TikTok) for trend analysis purposes.
+ClipPulse ("we", "our", or "the Service") is an internal tool developed by CEED, K.K. (株式会社Ceed) that collects and aggregates publicly available information from Instagram for trend analysis purposes.
 
 This Privacy Policy explains how we collect, use, and protect information when you use our Service.
 
@@ -51,7 +51,6 @@ We use the collected information to:
 ClipPulse integrates with the following third-party services:
 
 - **Meta (Instagram Graph API)** - For retrieving Instagram post data
-- **TikTok (Research API / Display API)** - For retrieving TikTok post data
 - **OpenAI** - For natural language processing of user instructions
 - **Google (Apps Script, Drive, Sheets)** - For hosting, storage, and output generation
 

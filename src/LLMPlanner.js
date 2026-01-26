@@ -22,9 +22,9 @@ const PLAN_SCHEMA = {
       type: 'array',
       items: {
         type: 'string',
-        enum: ['instagram', 'tiktok']
+        enum: ['instagram']
       },
-      description: 'Which platforms to collect from'
+      description: 'Which platforms to collect from (currently Instagram only)'
     },
     targetCounts: {
       type: 'object',
@@ -165,20 +165,18 @@ function parseInstructionToPlan(instruction) {
     return createFallbackPlan(instruction, defaultCount);
   }
 
-  const systemPrompt = `You are a data collection planning assistant for ClipPulse, a tool that collects short-form video data from Instagram and TikTok.
+  const systemPrompt = `You are a data collection planning assistant for ClipPulse, a tool that collects short-form video data from Instagram.
 
 Your task is to parse the user's natural language instruction and create a structured data collection plan.
 
 Guidelines:
 1. Extract keywords, hashtags, and any specific creator handles mentioned
-2. Determine which platforms to collect from (default: both Instagram and TikTok)
-3. Determine target counts (default: ${defaultCount} per platform)
+2. The platform is always Instagram (TikTok collection is currently disabled)
+3. Determine target counts (default: ${defaultCount})
 4. Identify any time window preferences (e.g., "last 7 days", "this month")
-5. Identify any region preferences for TikTok (e.g., "US region", "Japan")
-6. Suggest a query strategy based on the instruction
+5. Suggest a query strategy based on the instruction
 
-If the user doesn't specify a count, use ${defaultCount} per platform.
-If the user says "only TikTok" or "only Instagram", only include that platform.
+If the user doesn't specify a count, use ${defaultCount}.
 If hashtags are mentioned (with or without #), include them in the hashtags array without the # symbol.
 
 Current date: ${new Date().toISOString().split('T')[0]}`;
@@ -210,20 +208,12 @@ Return a structured JSON plan.`;
     }
 
     // Ensure required fields have defaults
-    plan.targetPlatforms = plan.targetPlatforms || ['instagram', 'tiktok'];
+    plan.targetPlatforms = ['instagram']; // Instagram only (TikTok disabled)
     plan.targetCounts = plan.targetCounts || {};
     plan.targetCounts.instagram = plan.targetCounts.instagram || defaultCount;
-    plan.targetCounts.tiktok = plan.targetCounts.tiktok || defaultCount;
+    plan.targetCounts.tiktok = 0; // TikTok disabled
     plan.keywords = plan.keywords || [];
     plan.hashtags = plan.hashtags || [];
-
-    // Filter platforms based on targetPlatforms
-    if (!plan.targetPlatforms.includes('instagram')) {
-      plan.targetCounts.instagram = 0;
-    }
-    if (!plan.targetPlatforms.includes('tiktok')) {
-      plan.targetCounts.tiktok = 0;
-    }
 
     return plan;
 
@@ -252,20 +242,15 @@ function createFallbackPlan(instruction, defaultCount) {
     .filter(w => w.length > 3)
     .filter(w => !['find', 'collect', 'get', 'posts', 'videos', 'about', 'from', 'with', 'only'].includes(w));
 
-  // Check for platform-specific instructions
-  const lowerInstruction = instruction.toLowerCase();
-  const tiktokOnly = lowerInstruction.includes('tiktok only') || lowerInstruction.includes('only tiktok');
-  const instagramOnly = lowerInstruction.includes('instagram only') || lowerInstruction.includes('only instagram');
-
   // Extract count if mentioned
   const countMatch = instruction.match(/(\d+)\s*posts?/i);
   const count = countMatch ? parseInt(countMatch[1]) : defaultCount;
 
   return {
-    targetPlatforms: tiktokOnly ? ['tiktok'] : (instagramOnly ? ['instagram'] : ['instagram', 'tiktok']),
+    targetPlatforms: ['instagram'], // Instagram only (TikTok disabled)
     targetCounts: {
-      instagram: instagramOnly || !tiktokOnly ? count : 0,
-      tiktok: tiktokOnly || !instagramOnly ? count : 0
+      instagram: count,
+      tiktok: 0 // TikTok disabled
     },
     keywords: words.slice(0, 5),
     hashtags: hashtags,
@@ -279,9 +264,9 @@ function createFallbackPlan(instruction, defaultCount) {
     contentCategory: words[0] || 'general',
     queryStrategy: {
       tiktok: {
-        primaryQuery: words.join(' '),
-        useHashtags: hashtags.length > 0,
-        useKeywords: words.length > 0,
+        primaryQuery: '',
+        useHashtags: false,
+        useKeywords: false,
         isRandom: false
       },
       instagram: {
