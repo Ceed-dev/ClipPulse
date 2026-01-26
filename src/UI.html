@@ -16,9 +16,33 @@
       --gray-100: #f3f4f6;
       --gray-200: #e5e7eb;
       --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
       --gray-500: #6b7280;
       --gray-700: #374151;
       --gray-900: #111827;
+      --bg: #f9fafb;
+      --card-bg: white;
+      --text: #111827;
+      --text-secondary: #6b7280;
+      --border: #d1d5db;
+    }
+
+    [data-theme="dark"] {
+      --primary: #818cf8;
+      --primary-hover: #a5b4fc;
+      --gray-50: #111827;
+      --gray-100: #1f2937;
+      --gray-200: #374151;
+      --gray-300: #4b5563;
+      --gray-400: #6b7280;
+      --gray-500: #9ca3af;
+      --gray-700: #d1d5db;
+      --gray-900: #f9fafb;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #334155;
     }
 
     * {
@@ -29,8 +53,8 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: var(--gray-50);
-      color: var(--gray-900);
+      background: var(--bg);
+      color: var(--text);
       line-height: 1.5;
       padding: 20px;
       max-width: 800px;
@@ -41,16 +65,16 @@
       font-size: 24px;
       font-weight: 600;
       margin-bottom: 8px;
-      color: var(--gray-900);
+      color: var(--text);
     }
 
     .subtitle {
-      color: var(--gray-500);
+      color: var(--text-secondary);
       margin-bottom: 24px;
     }
 
     .card {
-      background: white;
+      background: var(--card-bg);
       border-radius: 12px;
       padding: 24px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -76,12 +100,14 @@
       width: 100%;
       min-height: 120px;
       padding: 12px;
-      border: 1px solid var(--gray-300);
+      border: 1px solid var(--border);
       border-radius: 8px;
       font-size: 14px;
       font-family: inherit;
       resize: vertical;
       transition: border-color 0.2s;
+      background: var(--card-bg);
+      color: var(--text);
     }
 
     textarea:focus {
@@ -91,7 +117,7 @@
     }
 
     textarea::placeholder {
-      color: var(--gray-500);
+      color: var(--text-secondary);
     }
 
     .btn {
@@ -148,10 +174,20 @@
     .status-badge {
       display: inline-flex;
       align-items: center;
+      gap: 8px;
       padding: 4px 12px;
       border-radius: 20px;
       font-size: 13px;
       font-weight: 500;
+    }
+
+    .status-badge .badge-spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
     }
 
     .status-badge.planning {
@@ -177,7 +213,7 @@
     .run-id {
       font-family: monospace;
       font-size: 13px;
-      color: var(--gray-500);
+      color: var(--text-secondary);
     }
 
     .progress-section {
@@ -189,7 +225,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 12px 0;
-      border-bottom: 1px solid var(--gray-100);
+      border-bottom: 1px solid var(--border);
     }
 
     .progress-row:last-child {
@@ -204,7 +240,7 @@
     .progress-value {
       font-size: 14px;
       font-weight: 500;
-      color: var(--gray-900);
+      color: var(--text);
     }
 
     .progress-bar {
@@ -220,6 +256,48 @@
       height: 100%;
       background: var(--primary);
       transition: width 0.3s ease;
+    }
+
+    .progress-bar-fill.animated {
+      background: linear-gradient(
+        90deg,
+        var(--primary) 0%,
+        var(--primary-hover) 50%,
+        var(--primary) 100%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .status-message {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      background: var(--gray-100);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .status-message .message-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--gray-300);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .status-message.hidden {
+      display: none;
     }
 
     .message-box {
@@ -260,7 +338,7 @@
     .examples {
       margin-top: 12px;
       padding: 12px;
-      background: var(--gray-50);
+      background: var(--bg);
       border-radius: 8px;
       font-size: 13px;
     }
@@ -273,7 +351,7 @@
 
     .examples ul {
       list-style: none;
-      color: var(--gray-500);
+      color: var(--text-secondary);
     }
 
     .examples li {
@@ -314,11 +392,81 @@
     .hidden {
       display: none;
     }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .header-left {
+      flex: 1;
+    }
+
+    .theme-toggle {
+      background: var(--gray-100);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .theme-toggle:hover {
+      background: var(--gray-200);
+    }
+
+    .theme-toggle svg {
+      width: 20px;
+      height: 20px;
+      color: var(--text-secondary);
+    }
+
+    .icon-sun, .icon-moon {
+      display: none;
+    }
+
+    [data-theme="light"] .icon-moon {
+      display: block;
+    }
+
+    [data-theme="dark"] .icon-sun {
+      display: block;
+    }
+
+    /* Default to showing moon (for switching to dark) */
+    :root:not([data-theme]) .icon-moon {
+      display: block;
+    }
   </style>
 </head>
 <body>
-  <h1>ClipPulse</h1>
-  <p class="subtitle">Short-Video Trend Collector</p>
+  <div class="header">
+    <div class="header-left">
+      <h1>ClipPulse</h1>
+      <p class="subtitle">Short-Video Trend Collector</p>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+  </div>
 
   <!-- Input Section -->
   <div class="card" id="inputSection">
@@ -333,9 +481,9 @@
       <div class="examples-title">Examples:</div>
       <ul>
         <li>Find 50 posts about skincare trends</li>
-        <li>Collect TikTok only, 100 posts, US region</li>
+        <li>Collect 100 Instagram posts about fashion</li>
         <li>Focus on fitness creators, last 7 days</li>
-        <li>#minimalism #lifestyle 30 posts each platform</li>
+        <li>#minimalism #lifestyle 30 posts</li>
       </ul>
     </div>
 
@@ -349,8 +497,16 @@
   <!-- Status Section -->
   <div class="card status-panel" id="statusPanel">
     <div class="status-header">
-      <span class="status-badge" id="statusBadge">Planning</span>
+      <span class="status-badge" id="statusBadge">
+        <span class="badge-spinner"></span>
+        <span class="badge-text">Planning</span>
+      </span>
       <span class="run-id" id="runIdDisplay"></span>
+    </div>
+
+    <div class="status-message" id="statusMessage">
+      <span class="message-spinner"></span>
+      <span class="message-text">Starting collection...</span>
     </div>
 
     <div class="progress-section">
@@ -359,16 +515,7 @@
         <div style="display: flex; align-items: center;">
           <span class="progress-value" id="igProgress">0 / 0</span>
           <div class="progress-bar">
-            <div class="progress-bar-fill" id="igProgressBar" style="width: 0%"></div>
-          </div>
-        </div>
-      </div>
-      <div class="progress-row">
-        <span class="progress-label">TikTok</span>
-        <div style="display: flex; align-items: center;">
-          <span class="progress-value" id="ttProgress">0 / 0</span>
-          <div class="progress-bar">
-            <div class="progress-bar-fill" id="ttProgressBar" style="width: 0%"></div>
+            <div class="progress-bar-fill animated" id="igProgressBar" style="width: 0%"></div>
           </div>
         </div>
       </div>
@@ -398,6 +545,28 @@
   </div>
 
   <script>
+    // Theme handling
+    function initTheme() {
+      const savedTheme = localStorage.getItem('clippulse-theme');
+      if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } else {
+        // Default to light, or use system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+      }
+    }
+
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('clippulse-theme', newTheme);
+    }
+
+    // Initialize theme on load
+    initTheme();
+
     let currentRunId = null;
     let pollingInterval = null;
 
@@ -480,41 +649,78 @@
     function updateStatusDisplay(status) {
       if (!status) return;
 
+      const isProcessing = status.status !== 'COMPLETED' && status.status !== 'FAILED';
+
       // Update status badge
       const badge = document.getElementById('statusBadge');
-      badge.textContent = formatStatus(status.status);
+      const badgeSpinner = badge.querySelector('.badge-spinner');
+      const badgeText = badge.querySelector('.badge-text');
+      badgeText.textContent = formatStatus(status.status);
       badge.className = 'status-badge ' + getStatusClass(status.status);
+      badgeSpinner.style.display = isProcessing ? 'block' : 'none';
+
+      // Update status message
+      const statusMessage = document.getElementById('statusMessage');
+      const messageText = statusMessage.querySelector('.message-text');
+      if (isProcessing) {
+        statusMessage.classList.remove('hidden');
+        messageText.textContent = getStatusMessage(status);
+      } else {
+        statusMessage.classList.add('hidden');
+      }
 
       // Update progress
       const igTarget = status.instagramTarget || 0;
-      const ttTarget = status.tiktokTarget || 0;
-
       document.getElementById('igProgress').textContent =
         `${status.instagramCollected || 0} / ${igTarget}`;
-      document.getElementById('ttProgress').textContent =
-        `${status.tiktokCollected || 0} / ${ttTarget}`;
 
-      // Update progress bars
+      // Update progress bar
       const igPercent = igTarget > 0 ? (status.instagramCollected / igTarget) * 100 : 0;
-      const ttPercent = ttTarget > 0 ? (status.tiktokCollected / ttTarget) * 100 : 0;
+      const progressBar = document.getElementById('igProgressBar');
+      progressBar.style.width = Math.min(igPercent, 100) + '%';
 
-      document.getElementById('igProgressBar').style.width = Math.min(igPercent, 100) + '%';
-      document.getElementById('ttProgressBar').style.width = Math.min(ttPercent, 100) + '%';
+      // Remove animation when complete
+      if (!isProcessing) {
+        progressBar.classList.remove('animated');
+      }
 
-      // Update message
+      // Update message box for errors
       const messageBox = document.getElementById('messageBox');
       if (status.lastError) {
         messageBox.className = 'message-box error';
         messageBox.textContent = status.lastError;
-      } else {
+        messageBox.style.display = 'block';
+      } else if (!isProcessing) {
         messageBox.className = 'message-box info';
-        messageBox.textContent = status.lastMessage || 'Processing...';
+        messageBox.textContent = status.status === 'COMPLETED'
+          ? 'Collection completed successfully!'
+          : 'Collection failed.';
+        messageBox.style.display = 'block';
+      } else {
+        messageBox.style.display = 'none';
       }
 
       // Check if completed or failed
-      if (status.status === 'COMPLETED' || status.status === 'FAILED') {
+      if (!isProcessing) {
         stopPolling();
         document.getElementById('cancelBtn').classList.add('hidden');
+      }
+    }
+
+    function getStatusMessage(status) {
+      switch (status.status) {
+        case 'CREATED':
+          return 'Initializing run...';
+        case 'PLANNING':
+          return 'Analyzing your instruction and creating collection plan...';
+        case 'RUNNING_INSTAGRAM':
+          const collected = status.instagramCollected || 0;
+          const target = status.instagramTarget || 0;
+          return `Collecting Instagram posts... (${collected}/${target})`;
+        case 'FINALIZING':
+          return 'Finalizing spreadsheet...';
+        default:
+          return 'Processing...';
       }
     }
 

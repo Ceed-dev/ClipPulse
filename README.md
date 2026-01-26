@@ -146,6 +146,10 @@ Therefore, ClipPulse must implement **batch processing + continuation**:
 
 ### 7.1 Single-page UI components
 
+**Header:**
+- App title and subtitle
+- Dark/Light mode toggle button (preference saved to localStorage)
+
 **Instruction input:**
 - Multiline text area
 - Placeholder examples
@@ -155,9 +159,10 @@ Therefore, ClipPulse must implement **batch processing + continuation**:
 
 **Status / log view:**
 - Shows:
-  - Run status (PLANNING / RUNNING / COMPLETED / FAILED)
-  - Progress counts (Instagram collected / TikTok collected)
-  - Last message / last error (short)
+  - Run status badge with spinner (PLANNING / RUNNING / COMPLETED / FAILED)
+  - Live status message describing current operation
+  - Progress counts with animated progress bar (Instagram collected)
+  - Error messages when applicable
 
 **Result link:**
 - Link to the generated spreadsheet once created (even if still running)
