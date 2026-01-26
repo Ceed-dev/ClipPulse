@@ -490,47 +490,45 @@
       display: block;
     }
 
-    .data-fields-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 8px;
-    }
-
-    .data-field-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      padding: 8px 10px;
-      background: var(--bg);
-      border-radius: 6px;
+    .data-fields-table {
+      width: 100%;
+      border-collapse: collapse;
       font-size: 12px;
     }
 
-    .field-number {
-      color: var(--primary);
+    .data-fields-table th,
+    .data-fields-table td {
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-fields-table th {
       font-weight: 600;
-      min-width: 20px;
+      color: var(--text-secondary);
+      background: var(--bg);
     }
 
-    .field-info {
-      flex: 1;
+    .data-fields-table tr:hover td {
+      background: var(--bg);
     }
 
-    .field-name {
-      color: var(--text);
+    .data-fields-table td:nth-child(1) {
+      color: var(--primary);
       font-weight: 500;
-      word-break: break-word;
-    }
-
-    .field-type {
-      color: var(--text-secondary);
+      font-family: monospace;
       font-size: 11px;
     }
 
-    .field-desc {
+    .data-fields-table td:nth-child(2) {
       color: var(--text-secondary);
+      font-family: monospace;
       font-size: 11px;
-      margin-top: 2px;
+      white-space: nowrap;
+    }
+
+    .data-fields-table td:nth-child(3) {
+      color: var(--text);
     }
   </style>
 </head>
@@ -592,192 +590,40 @@
         </svg>
       </div>
       <div class="toggle-content" id="dataFieldsContent">
-        <div class="data-fields-grid">
-          <div class="data-field-item">
-            <span class="field-number">1</span>
-            <div class="field-info">
-              <div class="field-name">platform_post_id</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Unique Instagram media ID</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">2</span>
-            <div class="field-info">
-              <div class="field-name">create_username</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Username of the post creator</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">3</span>
-            <div class="field-info">
-              <div class="field-name">posted_at</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Post timestamp in ISO 8601 UTC format</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">4</span>
-            <div class="field-info">
-              <div class="field-name">caption_or_description</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Post caption text</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">5</span>
-            <div class="field-info">
-              <div class="field-name">post_url</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Shareable permalink URL</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">6</span>
-            <div class="field-info">
-              <div class="field-name">like_count</div>
-              <div class="field-type">number</div>
-              <div class="field-desc">Number of likes on the post</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">7</span>
-            <div class="field-info">
-              <div class="field-name">comments_count</div>
-              <div class="field-type">number</div>
-              <div class="field-desc">Number of comments on the post</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">8</span>
-            <div class="field-info">
-              <div class="field-name">media_type</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">IMAGE / VIDEO / CAROUSEL_ALBUM</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">9</span>
-            <div class="field-info">
-              <div class="field-name">media_url</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Direct URL to the media file</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">10</span>
-            <div class="field-info">
-              <div class="field-name">thumbnail_url</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Thumbnail image URL for videos</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">11</span>
-            <div class="field-info">
-              <div class="field-name">shortcode</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Short code from permalink URL</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">12</span>
-            <div class="field-info">
-              <div class="field-name">media_product_type</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">FEED / REELS / STORY / AD</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">13</span>
-            <div class="field-info">
-              <div class="field-name">is_comment_enabled</div>
-              <div class="field-type">boolean</div>
-              <div class="field-desc">Whether comments are enabled</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">14</span>
-            <div class="field-info">
-              <div class="field-name">is_shared_to_feed</div>
-              <div class="field-type">boolean</div>
-              <div class="field-desc">Whether Reel is shared to feed</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">15</span>
-            <div class="field-info">
-              <div class="field-name">children</div>
-              <div class="field-type">JSON string</div>
-              <div class="field-desc">Carousel children info</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">16</span>
-            <div class="field-info">
-              <div class="field-name">edges_comments</div>
-              <div class="field-type">JSON string</div>
-              <div class="field-desc">Summary or first N comments</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">17</span>
-            <div class="field-info">
-              <div class="field-name">edges_insights</div>
-              <div class="field-type">JSON string</div>
-              <div class="field-desc">Post metrics and insights</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">18</span>
-            <div class="field-info">
-              <div class="field-name">edges_collaborators</div>
-              <div class="field-type">JSON string</div>
-              <div class="field-desc">List of collaborators on the post</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">19</span>
-            <div class="field-info">
-              <div class="field-name">boost_ads_list</div>
-              <div class="field-type">JSON string</div>
-              <div class="field-desc">Boost/promotion ads info</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">20</span>
-            <div class="field-info">
-              <div class="field-name">boost_eligibility_info</div>
-              <div class="field-type">JSON string</div>
-              <div class="field-desc">Eligibility for boosting</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">21</span>
-            <div class="field-info">
-              <div class="field-name">copyright_check_status</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Copyright check result status</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">22</span>
-            <div class="field-info">
-              <div class="field-name">drive_url</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Google Drive URL to stored artifact</div>
-            </div>
-          </div>
-          <div class="data-field-item">
-            <span class="field-number">23</span>
-            <div class="field-info">
-              <div class="field-name">memo</div>
-              <div class="field-type">string</div>
-              <div class="field-desc">Notes on missing fields or errors</div>
-            </div>
-          </div>
-        </div>
+        <table class="data-fields-table">
+          <thead>
+            <tr>
+              <th>Field Name</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>platform_post_id</td><td>string</td><td>Unique Instagram media ID</td></tr>
+            <tr><td>create_username</td><td>string</td><td>Username of the post creator</td></tr>
+            <tr><td>posted_at</td><td>string</td><td>Post timestamp in ISO 8601 UTC format</td></tr>
+            <tr><td>caption_or_description</td><td>string</td><td>Post caption text</td></tr>
+            <tr><td>post_url</td><td>string</td><td>Shareable permalink URL</td></tr>
+            <tr><td>like_count</td><td>number</td><td>Number of likes on the post</td></tr>
+            <tr><td>comments_count</td><td>number</td><td>Number of comments on the post</td></tr>
+            <tr><td>media_type</td><td>string</td><td>IMAGE / VIDEO / CAROUSEL_ALBUM</td></tr>
+            <tr><td>media_url</td><td>string</td><td>Direct URL to the media file</td></tr>
+            <tr><td>thumbnail_url</td><td>string</td><td>Thumbnail image URL for videos</td></tr>
+            <tr><td>shortcode</td><td>string</td><td>Short code from permalink URL</td></tr>
+            <tr><td>media_product_type</td><td>string</td><td>FEED / REELS / STORY / AD</td></tr>
+            <tr><td>is_comment_enabled</td><td>boolean</td><td>Whether comments are enabled</td></tr>
+            <tr><td>is_shared_to_feed</td><td>boolean</td><td>Whether Reel is shared to feed</td></tr>
+            <tr><td>children</td><td>JSON string</td><td>Carousel children info</td></tr>
+            <tr><td>edges_comments</td><td>JSON string</td><td>Summary or first N comments</td></tr>
+            <tr><td>edges_insights</td><td>JSON string</td><td>Post metrics and insights</td></tr>
+            <tr><td>edges_collaborators</td><td>JSON string</td><td>List of collaborators on the post</td></tr>
+            <tr><td>boost_ads_list</td><td>JSON string</td><td>Boost/promotion ads info</td></tr>
+            <tr><td>boost_eligibility_info</td><td>JSON string</td><td>Eligibility for boosting</td></tr>
+            <tr><td>copyright_check_status</td><td>string</td><td>Copyright check result status</td></tr>
+            <tr><td>drive_url</td><td>string</td><td>Google Drive URL to stored artifact</td></tr>
+            <tr><td>memo</td><td>string</td><td>Notes on missing fields or errors</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
