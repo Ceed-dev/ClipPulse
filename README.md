@@ -157,6 +157,10 @@ Therefore, ClipPulse must implement **batch processing + continuation**:
 **Execute button:**
 - Starts a new run immediately
 
+**Data fields toggle:**
+- Collapsible section showing all 23 Instagram data fields that will be collected
+- Displays field name and type for each column
+
 **Status / log view:**
 - Shows:
   - Run status badge with spinner (PLANNING / RUNNING / COMPLETED / FAILED)
@@ -267,31 +271,31 @@ These columns appear first in both tabs, in this order:
 
 ### 9.4 Instagram tab columns (full order)
 
-| Column | Name | Type | Notes |
-|--------|------|------|-------|
-| 1 | platform_post_id | string | IG media ID |
-| 2 | create_username | string | username |
-| 3 | posted_at | string | ISO 8601 UTC |
-| 4 | caption_or_description | string | caption text |
-| 5 | post_url | string | share URL (permalink) |
-| 6 | like_count | number | |
-| 7 | comments_count | number | |
-| 8 | media_type | string | IMAGE / VIDEO / CAROUSEL_ALBUM (etc) |
-| 9 | media_url | string | may be ephemeral; store as returned |
-| 10 | thumbnail_url | string | for video |
-| 11 | shortcode | string | if available; else derive from permalink when possible |
-| 12 | media_product_type | string | FEED / REELS / STORY / AD (when available) |
-| 13 | is_comment_enabled | boolean | when available |
-| 14 | is_shared_to_feed | boolean | Reels-specific when available |
-| 15 | children | string | JSON string (carousel children info) |
-| 16 | edges_comments | string | JSON string (summary or first N comments) |
-| 17 | edges_insights | string | JSON string (metrics payload) |
-| 18 | edges_collaborators | string | JSON string list |
-| 19 | boost_ads_list | string | JSON string when available |
-| 20 | boost_eligibility_info | string | JSON string when available |
-| 21 | copyright_check_information_status | string | status string when available |
-| 22 | drive_url | string | Drive URL to primary artifact |
-| 23 | memo | string | short note on missing fields/errors |
+| Column | Name | Type | Description |
+|--------|------|------|-------------|
+| 1 | platform_post_id | string | Unique Instagram media ID |
+| 2 | create_username | string | Username of the post creator |
+| 3 | posted_at | string | Post timestamp in ISO 8601 UTC format |
+| 4 | caption_or_description | string | Post caption text |
+| 5 | post_url | string | Shareable permalink URL |
+| 6 | like_count | number | Number of likes on the post |
+| 7 | comments_count | number | Number of comments on the post |
+| 8 | media_type | string | IMAGE / VIDEO / CAROUSEL_ALBUM |
+| 9 | media_url | string | Direct URL to the media file (may be ephemeral) |
+| 10 | thumbnail_url | string | Thumbnail image URL for videos |
+| 11 | shortcode | string | Short code extracted from permalink URL |
+| 12 | media_product_type | string | FEED / REELS / STORY / AD |
+| 13 | is_comment_enabled | boolean | Whether comments are enabled on the post |
+| 14 | is_shared_to_feed | boolean | Whether Reel is shared to feed |
+| 15 | children | string | JSON string with carousel children info |
+| 16 | edges_comments | string | JSON string with summary or first N comments |
+| 17 | edges_insights | string | JSON string with post metrics and insights |
+| 18 | edges_collaborators | string | JSON string list of collaborators |
+| 19 | boost_ads_list | string | JSON string with boost/promotion ads info |
+| 20 | boost_eligibility_info | string | JSON string with eligibility for boosting |
+| 21 | copyright_check_information_status | string | Copyright check result status |
+| 22 | drive_url | string | Google Drive URL to stored artifact |
+| 23 | memo | string | Notes on missing fields or errors |
 
 ### 9.5 Data encoding rules
 

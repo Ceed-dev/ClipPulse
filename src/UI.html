@@ -442,6 +442,96 @@
     :root:not([data-theme]) .icon-moon {
       display: block;
     }
+
+    /* Collapsible data fields section */
+    .data-fields-toggle {
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+
+    .toggle-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 8px 0;
+      user-select: none;
+    }
+
+    .toggle-header:hover .toggle-title {
+      color: var(--primary);
+    }
+
+    .toggle-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: color 0.2s;
+    }
+
+    .toggle-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--text-secondary);
+      transition: transform 0.2s;
+    }
+
+    .toggle-icon.open {
+      transform: rotate(180deg);
+    }
+
+    .toggle-content {
+      display: none;
+      padding: 12px 0;
+    }
+
+    .toggle-content.open {
+      display: block;
+    }
+
+    .data-fields-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+    }
+
+    .data-field-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .field-number {
+      color: var(--primary);
+      font-weight: 600;
+      min-width: 20px;
+    }
+
+    .field-info {
+      flex: 1;
+    }
+
+    .field-name {
+      color: var(--text);
+      font-weight: 500;
+      word-break: break-word;
+    }
+
+    .field-type {
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .field-desc {
+      color: var(--text-secondary);
+      font-size: 11px;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
@@ -491,6 +581,204 @@
       <button class="btn btn-primary" id="executeBtn" onclick="startCollection()">
         Execute
       </button>
+    </div>
+
+    <!-- Data Fields Toggle -->
+    <div class="data-fields-toggle">
+      <div class="toggle-header" onclick="toggleDataFields()">
+        <span class="toggle-title">What data will be collected?</span>
+        <svg class="toggle-icon" id="toggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+      <div class="toggle-content" id="dataFieldsContent">
+        <div class="data-fields-grid">
+          <div class="data-field-item">
+            <span class="field-number">1</span>
+            <div class="field-info">
+              <div class="field-name">platform_post_id</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Unique Instagram media ID</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">2</span>
+            <div class="field-info">
+              <div class="field-name">create_username</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Username of the post creator</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">3</span>
+            <div class="field-info">
+              <div class="field-name">posted_at</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Post timestamp in ISO 8601 UTC format</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">4</span>
+            <div class="field-info">
+              <div class="field-name">caption_or_description</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Post caption text</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">5</span>
+            <div class="field-info">
+              <div class="field-name">post_url</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Shareable permalink URL</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">6</span>
+            <div class="field-info">
+              <div class="field-name">like_count</div>
+              <div class="field-type">number</div>
+              <div class="field-desc">Number of likes on the post</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">7</span>
+            <div class="field-info">
+              <div class="field-name">comments_count</div>
+              <div class="field-type">number</div>
+              <div class="field-desc">Number of comments on the post</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">8</span>
+            <div class="field-info">
+              <div class="field-name">media_type</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">IMAGE / VIDEO / CAROUSEL_ALBUM</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">9</span>
+            <div class="field-info">
+              <div class="field-name">media_url</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Direct URL to the media file</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">10</span>
+            <div class="field-info">
+              <div class="field-name">thumbnail_url</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Thumbnail image URL for videos</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">11</span>
+            <div class="field-info">
+              <div class="field-name">shortcode</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Short code from permalink URL</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">12</span>
+            <div class="field-info">
+              <div class="field-name">media_product_type</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">FEED / REELS / STORY / AD</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">13</span>
+            <div class="field-info">
+              <div class="field-name">is_comment_enabled</div>
+              <div class="field-type">boolean</div>
+              <div class="field-desc">Whether comments are enabled</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">14</span>
+            <div class="field-info">
+              <div class="field-name">is_shared_to_feed</div>
+              <div class="field-type">boolean</div>
+              <div class="field-desc">Whether Reel is shared to feed</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">15</span>
+            <div class="field-info">
+              <div class="field-name">children</div>
+              <div class="field-type">JSON string</div>
+              <div class="field-desc">Carousel children info</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">16</span>
+            <div class="field-info">
+              <div class="field-name">edges_comments</div>
+              <div class="field-type">JSON string</div>
+              <div class="field-desc">Summary or first N comments</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">17</span>
+            <div class="field-info">
+              <div class="field-name">edges_insights</div>
+              <div class="field-type">JSON string</div>
+              <div class="field-desc">Post metrics and insights</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">18</span>
+            <div class="field-info">
+              <div class="field-name">edges_collaborators</div>
+              <div class="field-type">JSON string</div>
+              <div class="field-desc">List of collaborators on the post</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">19</span>
+            <div class="field-info">
+              <div class="field-name">boost_ads_list</div>
+              <div class="field-type">JSON string</div>
+              <div class="field-desc">Boost/promotion ads info</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">20</span>
+            <div class="field-info">
+              <div class="field-name">boost_eligibility_info</div>
+              <div class="field-type">JSON string</div>
+              <div class="field-desc">Eligibility for boosting</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">21</span>
+            <div class="field-info">
+              <div class="field-name">copyright_check_status</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Copyright check result status</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">22</span>
+            <div class="field-info">
+              <div class="field-name">drive_url</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Google Drive URL to stored artifact</div>
+            </div>
+          </div>
+          <div class="data-field-item">
+            <span class="field-number">23</span>
+            <div class="field-info">
+              <div class="field-name">memo</div>
+              <div class="field-type">string</div>
+              <div class="field-desc">Notes on missing fields or errors</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -566,6 +854,14 @@
 
     // Initialize theme on load
     initTheme();
+
+    // Toggle data fields visibility
+    function toggleDataFields() {
+      const content = document.getElementById('dataFieldsContent');
+      const icon = document.getElementById('toggleIcon');
+      content.classList.toggle('open');
+      icon.classList.toggle('open');
+    }
 
     let currentRunId = null;
     let pollingInterval = null;
