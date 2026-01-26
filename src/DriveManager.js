@@ -16,6 +16,7 @@
 
 /**
  * Get or create the root ClipPulse folder
+ * If CLIPPULSE_PARENT_FOLDER_ID is set, creates inside that folder (e.g., Shared Drive)
  * @returns {GoogleAppsScript.Drive.Folder} The root folder
  */
 function getRootFolder() {
@@ -25,21 +26,49 @@ function getRootFolder() {
     try {
       return DriveApp.getFolderById(folderId);
     } catch (e) {
-      console.error('Root folder not found by ID, will try to find by name');
+      console.error('Root folder not found by ID, will create new one');
     }
   }
 
-  // Try to find existing folder by name
-  const folders = DriveApp.getFoldersByName('ClipPulse');
-  if (folders.hasNext()) {
-    const folder = folders.next();
-    // Save the ID for future use
-    setConfig(CONFIG_KEYS.CLIPPULSE_ROOT_FOLDER_ID, folder.getId());
-    return folder;
+  // Check if a parent folder is specified (for Shared Drives)
+  const parentFolderId = getConfig('CLIPPULSE_PARENT_FOLDER_ID');
+  let parentFolder = null;
+
+  if (parentFolderId) {
+    try {
+      parentFolder = DriveApp.getFolderById(parentFolderId);
+      console.log('Using parent folder:', parentFolder.getName());
+    } catch (e) {
+      console.error('Parent folder not found, will create in My Drive');
+    }
+  }
+
+  // Try to find existing ClipPulse folder in parent
+  if (parentFolder) {
+    const folders = parentFolder.getFoldersByName('ClipPulse');
+    if (folders.hasNext()) {
+      const folder = folders.next();
+      setConfig(CONFIG_KEYS.CLIPPULSE_ROOT_FOLDER_ID, folder.getId());
+      return folder;
+    }
+  } else {
+    // Try to find in My Drive
+    const folders = DriveApp.getFoldersByName('ClipPulse');
+    if (folders.hasNext()) {
+      const folder = folders.next();
+      setConfig(CONFIG_KEYS.CLIPPULSE_ROOT_FOLDER_ID, folder.getId());
+      return folder;
+    }
   }
 
   // Create new root folder
-  const newFolder = DriveApp.createFolder('ClipPulse');
+  let newFolder;
+  if (parentFolder) {
+    newFolder = parentFolder.createFolder('ClipPulse');
+  } else {
+    newFolder = DriveApp.createFolder('ClipPulse');
+  }
+
   setConfig(CONFIG_KEYS.CLIPPULSE_ROOT_FOLDER_ID, newFolder.getId());
 
   // Create manifests subfolder

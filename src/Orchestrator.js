@@ -17,10 +17,12 @@
  * @returns {Object} Run info including runId and spreadsheetUrl
  */
 function startRun(instruction) {
-  // Validate configuration
-  const configValidation = validateConfig();
-  if (!configValidation.isValid) {
-    throw new Error(`Missing configuration: ${configValidation.missingKeys.join(', ')}`);
+  // Skip validation in mock mode
+  if (!isMockMode()) {
+    const configValidation = validateConfig();
+    if (!configValidation.isValid) {
+      throw new Error(`Missing configuration: ${configValidation.missingKeys.join(', ')}`);
+    }
   }
 
   // Generate run ID

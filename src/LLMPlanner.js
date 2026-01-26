@@ -159,6 +159,12 @@ function parseInstructionToPlan(instruction) {
   const operationalConfig = getOperationalConfig();
   const defaultCount = operationalConfig.maxPostsPerPlatform;
 
+  // In mock mode, use fallback plan without calling OpenAI
+  if (isMockMode()) {
+    console.log('Mock mode: Using fallback plan');
+    return createFallbackPlan(instruction, defaultCount);
+  }
+
   const systemPrompt = `You are a data collection planning assistant for ClipPulse, a tool that collects short-form video data from Instagram and TikTok.
 
 Your task is to parse the user's natural language instruction and create a structured data collection plan.
