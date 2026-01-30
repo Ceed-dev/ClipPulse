@@ -255,6 +255,39 @@ function bulkSetProperties(properties) {
 }
 
 // ============================================================
+// Debug & Status Check Functions
+// ============================================================
+
+/**
+ * Check authentication status and Instagram connection
+ * Run this function to see detailed status in the Execution log
+ */
+function checkStatus() {
+  console.log('=== Auth Status ===');
+  const authStatus = getAuthStatus();
+  console.log(JSON.stringify(authStatus, null, 2));
+
+  console.log('\n=== Instagram Test ===');
+  const igTest = testInstagram();
+  console.log(JSON.stringify(igTest, null, 2));
+
+  console.log('\n=== Summary ===');
+  console.log('Instagram configured:', authStatus.instagram.configured);
+  console.log('Instagram authorized:', authStatus.instagram.authorized);
+  console.log('Instagram User ID:', authStatus.instagram.userId || 'NOT SET');
+
+  if (igTest.success) {
+    console.log('Instagram username:', igTest.username);
+    console.log('Status: READY TO USE');
+  } else {
+    console.log('Error:', igTest.message);
+    console.log('Status: NEEDS SETUP');
+  }
+
+  return { authStatus, igTest };
+}
+
+// ============================================================
 // Server functions exposed to the UI (called via google.script.run)
 // These are referenced in UI.html
 // ============================================================
