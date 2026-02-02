@@ -58,6 +58,7 @@ function startRun(instruction) {
       spreadsheetUrl: spreadsheet.spreadsheetUrl,
       runFolderId: folders.runFolderId,
       instagramFolderId: folders.instagramFolderId,
+      xFolderId: folders.xFolderId,
       tiktokFolderId: folders.tiktokFolderId
     });
 
@@ -155,9 +156,12 @@ function executeRunPhase(runId, state) {
   switch (state.status) {
     case RUN_STATUS.CREATED:
     case RUN_STATUS.PLANNING:
-      // Move to Instagram collection
+      // Move to Instagram collection first
       if (plan.targetCounts.instagram > 0 && (isMetaAuthorized() || isMockMode())) {
         updateRunStatus(runId, RUN_STATUS.RUNNING_INSTAGRAM, 'Collecting Instagram data...');
+        executeRunPhase(runId, loadRunState(runId));
+      } else if (plan.targetCounts.x > 0 && (isXConfigured() || isMockMode())) {
+        updateRunStatus(runId, RUN_STATUS.RUNNING_X, 'Collecting X data...');
         executeRunPhase(runId, loadRunState(runId));
       } else if (plan.targetCounts.tiktok > 0) {
         updateRunStatus(runId, RUN_STATUS.RUNNING_TIKTOK, 'Collecting TikTok data...');
@@ -169,6 +173,10 @@ function executeRunPhase(runId, state) {
 
     case RUN_STATUS.RUNNING_INSTAGRAM:
       collectInstagramWithTimeout(runId, plan, startTime, maxExecutionTime);
+      break;
+
+    case RUN_STATUS.RUNNING_X:
+      collectXWithTimeout(runId, plan, startTime, maxExecutionTime);
       break;
 
     case RUN_STATUS.RUNNING_TIKTOK:
@@ -235,6 +243,67 @@ function collectInstagramWithTimeout(runId, plan, startTime, maxTime) {
   } catch (e) {
     if (e.message === 'TIMEOUT') {
       console.log('Instagram collection timeout, scheduling continuation');
+      scheduleContinuation(runId);
+    } else {
+      throw e;
+    }
+  }
+}
+
+/**
+ * Collect X data with timeout handling
+ * @param {string} runId - The run ID
+ * @param {Object} plan - The collection plan
+ * @param {number} startTime - Start timestamp
+ * @param {number} maxTime - Maximum execution time in ms
+ */
+function collectXWithTimeout(runId, plan, startTime, maxTime) {
+  const state = loadRunState(runId);
+  const target = plan.targetCounts.x;
+  let collected = state.xProgress?.collected || 0;
+
+  if (!isXConfigured() && !isMockMode()) {
+    updateRunStatus(runId, RUN_STATUS.RUNNING_X,
+      'X API not configured; skipping');
+    moveToNextPhase(runId, 'x');
+    return;
+  }
+
+  try {
+    // Use mock collector if mock mode is enabled
+    const collectFn = isMockMode() ? collectXWithMocks : collectXTweets;
+    const result = collectFn(runId, plan, (progress) => {
+      // Check timeout
+      if (Date.now() - startTime > maxTime) {
+        throw new Error('TIMEOUT');
+      }
+    });
+
+    collected = result.collected;
+
+    // Check if we got enough
+    if (collected < target) {
+      // Try to expand search
+      const expandedPlan = expandXSearch(runId, plan);
+      setRunPlan(runId, expandedPlan);
+
+      // If still time, continue collecting
+      if (Date.now() - startTime < maxTime - 30000) {
+        const additionalResult = collectXTweets(runId, expandedPlan, (progress) => {
+          if (Date.now() - startTime > maxTime) {
+            throw new Error('TIMEOUT');
+          }
+        });
+        collected = additionalResult.collected;
+      }
+    }
+
+    // Move to next phase
+    moveToNextPhase(runId, 'x');
+
+  } catch (e) {
+    if (e.message === 'TIMEOUT') {
+      console.log('X collection timeout, scheduling continuation');
       scheduleContinuation(runId);
     } else {
       throw e;
@@ -313,6 +382,18 @@ function moveToNextPhase(runId, completedPhase) {
   const plan = state.plan;
 
   if (completedPhase === 'instagram') {
+    // Check if we need to do X
+    if (plan.targetCounts.x > 0 && (isXConfigured() || isMockMode())) {
+      updateRunStatus(runId, RUN_STATUS.RUNNING_X, 'Collecting X data...');
+      scheduleContinuation(runId);
+    } else if (plan.targetCounts.tiktok > 0) {
+      updateRunStatus(runId, RUN_STATUS.RUNNING_TIKTOK, 'Collecting TikTok data...');
+      scheduleContinuation(runId);
+    } else {
+      updateRunStatus(runId, RUN_STATUS.FINALIZING, 'Finalizing...');
+      scheduleContinuation(runId);
+    }
+  } else if (completedPhase === 'x') {
     // Check if we need to do TikTok
     if (plan.targetCounts.tiktok > 0) {
       updateRunStatus(runId, RUN_STATUS.RUNNING_TIKTOK, 'Collecting TikTok data...');
@@ -359,6 +440,7 @@ function finalizeRun(runId) {
     const summary = getRunSummary(runId);
     updateRunStatus(runId, RUN_STATUS.COMPLETED,
       `Completed: Instagram ${summary.instagramCollected}/${summary.instagramTarget}, ` +
+      `X ${summary.xCollected}/${summary.xTarget}, ` +
       `TikTok ${summary.tiktokCollected}/${summary.tiktokTarget}`);
 
     // Cleanup
@@ -434,6 +516,8 @@ function retryRun(runId) {
   let newStatus;
   if (state.instagramProgress.collected < state.instagramProgress.target && isMetaAuthorized()) {
     newStatus = RUN_STATUS.RUNNING_INSTAGRAM;
+  } else if (state.xProgress?.collected < state.xProgress?.target && isXConfigured()) {
+    newStatus = RUN_STATUS.RUNNING_X;
   } else if (state.tiktokProgress.collected < state.tiktokProgress.target) {
     newStatus = RUN_STATUS.RUNNING_TIKTOK;
   } else {

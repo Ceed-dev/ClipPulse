@@ -13,6 +13,7 @@ const RUN_STATUS = {
   CREATED: 'CREATED',
   PLANNING: 'PLANNING',
   RUNNING_INSTAGRAM: 'RUNNING_INSTAGRAM',
+  RUNNING_X: 'RUNNING_X',
   RUNNING_TIKTOK: 'RUNNING_TIKTOK',
   FINALIZING: 'FINALIZING',
   COMPLETED: 'COMPLETED',
@@ -64,6 +65,12 @@ function createRunState(runId, instruction) {
       cursor: null,
       processedIds: []
     },
+    xProgress: {
+      collected: 0,
+      target: 0,
+      cursor: null,
+      processedIds: []
+    },
     tiktokProgress: {
       collected: 0,
       target: 0,
@@ -77,6 +84,7 @@ function createRunState(runId, instruction) {
     spreadsheetUrl: null,
     runFolderId: null,
     instagramFolderId: null,
+    xFolderId: null,
     tiktokFolderId: null,
 
     // Error tracking
@@ -186,6 +194,24 @@ function updateInstagramProgress(runId, progress) {
 }
 
 /**
+ * Update X progress
+ * @param {string} runId - The run ID
+ * @param {Object} progress - Progress update
+ */
+function updateXProgress(runId, progress) {
+  const state = loadRunState(runId);
+  if (!state) {
+    throw new Error(`Run state not found for ${runId}`);
+  }
+
+  state.xProgress = {
+    ...state.xProgress,
+    ...progress
+  };
+  saveRunState(state);
+}
+
+/**
  * Update TikTok progress
  * @param {string} runId - The run ID
  * @param {Object} progress - Progress update
@@ -206,7 +232,7 @@ function updateTikTokProgress(runId, progress) {
 /**
  * Add processed post ID for deduplication
  * @param {string} runId - The run ID
- * @param {string} platform - 'instagram' or 'tiktok'
+ * @param {string} platform - 'instagram', 'x', or 'tiktok'
  * @param {string} postId - The post ID
  */
 function addProcessedPostId(runId, platform, postId) {
@@ -218,6 +244,13 @@ function addProcessedPostId(runId, platform, postId) {
   if (platform === 'instagram') {
     if (!state.instagramProgress.processedIds.includes(postId)) {
       state.instagramProgress.processedIds.push(postId);
+    }
+  } else if (platform === 'x') {
+    if (!state.xProgress) {
+      state.xProgress = { collected: 0, target: 0, cursor: null, processedIds: [] };
+    }
+    if (!state.xProgress.processedIds.includes(postId)) {
+      state.xProgress.processedIds.push(postId);
     }
   } else if (platform === 'tiktok') {
     if (!state.tiktokProgress.processedIds.includes(postId)) {
@@ -231,7 +264,7 @@ function addProcessedPostId(runId, platform, postId) {
 /**
  * Check if a post ID has already been processed (for deduplication)
  * @param {string} runId - The run ID
- * @param {string} platform - 'instagram' or 'tiktok'
+ * @param {string} platform - 'instagram', 'x', or 'tiktok'
  * @param {string} postId - The post ID
  * @returns {boolean}
  */
@@ -243,6 +276,8 @@ function isPostProcessed(runId, platform, postId) {
 
   if (platform === 'instagram') {
     return state.instagramProgress.processedIds.includes(postId);
+  } else if (platform === 'x') {
+    return state.xProgress?.processedIds?.includes(postId) || false;
   } else if (platform === 'tiktok') {
     return state.tiktokProgress.processedIds.includes(postId);
   }
@@ -267,6 +302,9 @@ function setRunPlan(runId, plan) {
   if (plan.targetCounts) {
     if (plan.targetCounts.instagram !== undefined) {
       state.instagramProgress.target = plan.targetCounts.instagram;
+    }
+    if (plan.targetCounts.x !== undefined) {
+      state.xProgress.target = plan.targetCounts.x;
     }
     if (plan.targetCounts.tiktok !== undefined) {
       state.tiktokProgress.target = plan.targetCounts.tiktok;
@@ -299,6 +337,9 @@ function setRunResources(runId, resources) {
   if (resources.instagramFolderId) {
     state.instagramFolderId = resources.instagramFolderId;
   }
+  if (resources.xFolderId) {
+    state.xFolderId = resources.xFolderId;
+  }
   if (resources.tiktokFolderId) {
     state.tiktokFolderId = resources.tiktokFolderId;
   }
@@ -323,6 +364,8 @@ function getRunSummary(runId) {
     spreadsheetUrl: state.spreadsheetUrl,
     instagramCollected: state.instagramProgress.collected,
     instagramTarget: state.instagramProgress.target,
+    xCollected: state.xProgress?.collected || 0,
+    xTarget: state.xProgress?.target || 0,
     tiktokCollected: state.tiktokProgress.collected,
     tiktokTarget: state.tiktokProgress.target,
     lastMessage: state.lastMessage,

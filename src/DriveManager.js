@@ -117,6 +117,7 @@ function createRunFolderStructure(runId) {
   // Create subfolders for the run
   const spreadsheetFolder = runFolder.createFolder('spreadsheet');
   const instagramFolder = runFolder.createFolder('instagram');
+  const xFolder = runFolder.createFolder('x');
   const tiktokFolder = runFolder.createFolder('tiktok');
 
   return {
@@ -124,6 +125,7 @@ function createRunFolderStructure(runId) {
     runFolderUrl: runFolder.getUrl(),
     spreadsheetFolderId: spreadsheetFolder.getId(),
     instagramFolderId: instagramFolder.getId(),
+    xFolderId: xFolder.getId(),
     tiktokFolderId: tiktokFolder.getId()
   };
 }

@@ -1,12 +1,12 @@
 # ClipPulse — Specification (Short-Video Trend Collector)
 
-**Document version:** 1.1<br>
+**Document version:** 2.0<br>
 **Last updated:** 2026-02-02<br>
 **Status:** Final (implementation-ready)
 
 ## 1. Overview
 
-ClipPulse is an internal tool that collects and aggregates information from short vertical videos posted on Instagram, then outputs the results into a single Google Spreadsheet per run, with one row per post and one column per metric.
+ClipPulse is an internal tool that collects and aggregates information from short vertical videos and posts on **Instagram** and **X (Twitter)**, then outputs the results into a single Google Spreadsheet per run, with one row per post and one column per metric.
 
 The tool is designed for on-demand usage: data is fetched each time a human runs a query, not on a schedule.
 
@@ -14,7 +14,7 @@ The tool is designed for on-demand usage: data is fetched each time a human runs
 
 ## 2. Purpose
 
-Convert short-video market trends into structured, numeric, analyzable data so that the team can use the resulting dataset as reference material when forming hypotheses for later testing.
+Convert short-video and social media trends into structured, numeric, analyzable data so that the team can use the resulting dataset as reference material when forming hypotheses for later testing.
 
 Manual browsing and manual metric collection is possible but inefficient; ClipPulse automates the workflow to improve speed and consistency.
 
@@ -24,6 +24,7 @@ Manual browsing and manual metric collection is possible but inefficient; ClipPu
 
 **Target data:**
 - Posts on Instagram
+- Tweets/posts on X (Twitter)
 - Video-related data associated with those posts
 - Metrics are retrieved only via official APIs.
 
@@ -31,8 +32,9 @@ Manual browsing and manual metric collection is possible but inefficient; ClipPu
 
 A human gives instructions in natural language, e.g.:
 - "Find 50 posts about skincare trends"
-- "Collect TikTok only, 100 posts, US region"
-- "Focus on fitness creators"
+- "Collect 30 tweets about AI from @elonmusk"
+- "Instagram posts about fashion, 100 posts"
+- "#minimalism #lifestyle from both platforms"
 
 The system interprets instructions, decides API parameters, and retrieves data.
 
@@ -42,12 +44,13 @@ The system interprets instructions, decides API parameters, and retrieves data.
 - Runs are triggered by human interaction only.
 - Each execution creates one brand-new Spreadsheet containing:
   - Tab 1: Instagram
+  - Tab 2: X (Twitter)
 
 ### 3.4 Output format
 
 - Each post = one row
 - Each metric = one column
-- Include a Drive URL per row that points to the stored "video artifact" in Drive
+- Include a Drive URL per row that points to the stored "artifact" in Drive
 - Include an additional memo column per row for exceptions/notes
 
 ## 4. Best-practice decisions (final)
@@ -62,21 +65,29 @@ The system interprets instructions, decides API parameters, and retrieves data.
 - Secure access control via Google accounts
 - Fast iteration and simple operations for an internal tool
 
-### 4.2 TikTok API choice
+### 4.2 TikTok API choice (DISABLED)
 
 - **Primary:** TikTok Research API (best match for public-content research use cases)
 - **Fallback:** TikTok Display API (only when Research API is unavailable and a connected user context is acceptable)
 
-**Rationale:**
-- Research API supports querying public content via structured query conditions.
-- Display API is typically tied to authorized user data and may not satisfy "trend research" goals.
+### 4.3 X (Twitter) API choice
 
-### 4.3 Video storage choice
+**TwitterAPI.io Advanced Search API** is used for X collection.
+
+**Endpoint:** `https://api.twitterapi.io/twitter/tweet/advanced_search`
+
+**Features:**
+- Full search query support (keywords, hashtags, from:user, date ranges, language filters)
+- Two query types: Latest (recent tweets) and Top (popular tweets)
+- Cursor-based pagination for large result sets
+- Rich tweet data including engagement metrics and author information
+
+### 4.4 Video/Post storage choice
 
 - **Preferred:** Store the actual video file in Drive when it is feasible via official API-returned URLs and Apps Script limits.
-- **Allowed fallback (approved):** If downloading the video file is not feasible, store a Drive "watch artifact" that contains a link to watch the video (so a human can click through and watch).
+- **Allowed fallback (approved):** If downloading the video file is not feasible, store a Drive "watch artifact" that contains a link to watch the content (so a human can click through and watch).
 
-This preserves the requirement: Drive URL exists and the video is watchable via that link.
+This preserves the requirement: Drive URL exists and the content is watchable via that link.
 
 ## 5. Technical stack
 
@@ -96,11 +107,12 @@ This preserves the requirement: Drive URL exists and the video is watchable via 
 - Run manifest JSON
 
 **Google Sheets:**
-- One spreadsheet per run, one tab (Instagram only; TikTok tab disabled)
+- One spreadsheet per run, two tabs: Instagram and X
 
 ### 5.3 External APIs
 
 - Instagram Graph API (Instagram API with Facebook Login; professional accounts)
+- TwitterAPI.io Advanced Search API (for X/Twitter data collection)
 - TikTok Research API (disabled; code preserved for future use)
 - TikTok Display API (disabled; code preserved for future use)
 
@@ -112,6 +124,7 @@ This preserves the requirement: Drive URL exists and the video is watchable via 
 **Used for:**
 - Parsing the user's natural-language instruction into a structured plan
 - Deciding query strategy and parameters within allowed official API capabilities
+- Determining target platforms (Instagram, X, or both) from user instruction
 - Generating fallback strategies if insufficient results are retrieved
 - Producing short, consistent "memo" notes when fields are missing or errors occur
 
@@ -123,7 +136,8 @@ This preserves the requirement: Drive URL exists and the video is watchable via 
 
 Store secrets in Apps Script Script Properties (never in client-side code):
 - OpenAI API key
-- TikTok client key/secret
+- X API key (TwitterAPI.io)
+- TikTok client key/secret (disabled)
 - Meta app credentials
 
 Use `googleworkspace/apps-script-oauth2` library for 3-legged OAuth flows (Meta + TikTok Display, if enabled).
@@ -156,14 +170,16 @@ Therefore, ClipPulse must implement **batch processing + continuation**:
 - Starts a new run immediately
 
 **Data fields toggle:**
-- Collapsible section showing all 23 Instagram data fields that will be collected
-- Displays field name and type for each column
+- Collapsible sections showing data fields for each platform:
+  - Instagram: 23 data fields
+  - X (Twitter): 28 data fields
+- Displays field name, type, and description for each column
 
 **Status / log view:**
 - Shows:
-  - Run status badge with spinner (PLANNING / RUNNING / COMPLETED / FAILED)
+  - Run status badge with spinner (PLANNING / RUNNING_INSTAGRAM / RUNNING_X / FINALIZING / COMPLETED / FAILED)
   - Live status message describing current operation
-  - Progress counts with animated progress bar (Instagram collected)
+  - Progress counts with animated progress bars for each platform (Instagram collected, X collected)
   - Error messages when applicable
 
 **Result link:**
@@ -192,6 +208,7 @@ ClipPulse/
         YYYYMMDD_HHMMSS_<runShortId>/
           spreadsheet/
           instagram/
+          x/
           tiktok/
   manifests/
 ```
@@ -204,11 +221,12 @@ ClipPulse/
 **Post artifact folder:**
 - TikTok: `tiktok/<platform_post_id>/`
 - Instagram: `instagram/<platform_post_id>/`
+- X: `x/<platform_post_id>/`
 
 **Files inside each post folder:**
 - `raw.json` (raw API response for that post)
-- `video.mp4` (only if downloaded)
-- `watch.html` (fallback "watch artifact" if video not downloaded)
+- `video.mp4` (only if downloaded, for video content)
+- `watch.html` (fallback "watch artifact" containing link to view the post)
 - `thumbnail.jpg` (optional, if available and feasible)
 
 ### 8.3 What "Drive URL" means in the sheet
@@ -222,8 +240,8 @@ For each row, `drive_url` must point to the primary artifact:
 ### 9.1 Spreadsheet creation rules
 
 - Each execution creates one new spreadsheet
-- It contains one tab: Instagram (TikTok tab is disabled)
-- The tab has:
+- It contains two tabs: Instagram and X (TikTok tab is disabled)
+- Each tab has:
   - Header row (row 1)
   - Data rows starting at row 2
 - Columns are fixed and must not change across runs
@@ -234,7 +252,6 @@ These columns appear first in both tabs, in this order:
 1. `platform_post_id`
 2. `create_username`
 3. `posted_at` (ISO 8601 UTC)
-4. `caption_or_description`
 
 ### 9.3 TikTok tab columns (DISABLED - preserved for future use)
 
@@ -294,7 +311,40 @@ These columns appear first in both tabs, in this order:
 | 22 | drive_url | string | Google Drive URL to stored artifact |
 | 23 | memo | string | Notes on missing fields or errors |
 
-### 9.5 Data encoding rules
+### 9.5 X (Twitter) tab columns (full order)
+
+| Column | Name | Type | Description |
+|--------|------|------|-------------|
+| 1 | platform_post_id | string | Unique tweet ID |
+| 2 | create_username | string | Username of the tweet author |
+| 3 | posted_at | string | Tweet timestamp |
+| 4 | text | string | Tweet text content |
+| 5 | post_url | string | URL to the tweet |
+| 6 | source | string | Client app used to post the tweet |
+| 7 | retweet_count | number | Number of retweets |
+| 8 | reply_count | number | Number of replies |
+| 9 | like_count | number | Number of likes |
+| 10 | quote_count | number | Number of quote tweets |
+| 11 | view_count | number | Number of views (impressions) |
+| 12 | lang | string | Language code of the tweet |
+| 13 | is_reply | boolean | Whether the tweet is a reply |
+| 14 | in_reply_to_id | string | ID of the tweet being replied to |
+| 15 | conversation_id | string | ID of the conversation thread |
+| 16 | author_id | string | Unique ID of the author |
+| 17 | author_name | string | Author's username |
+| 18 | author_display_name | string | Author's display name |
+| 19 | author_followers | number | Author's follower count |
+| 20 | author_following | number | Author's following count |
+| 21 | author_is_blue_verified | boolean | Whether author has blue verification |
+| 22 | author_created_at | string | Author account creation date |
+| 23 | hashtags | string | JSON string array of hashtags in the tweet |
+| 24 | urls | string | JSON string array of URLs included in the tweet |
+| 25 | user_mentions | string | JSON string array of users mentioned in the tweet |
+| 26 | media | string | JSON string array of media attachments (images, videos) |
+| 27 | drive_url | string | Google Drive URL to stored artifact |
+| 28 | memo | string | Notes on missing fields or errors |
+
+### 9.6 Data encoding rules
 
 - **Arrays/objects** must be stored as JSON strings in a single cell.
 - **Timestamps:** Always store `posted_at` as ISO 8601 in UTC.
@@ -308,10 +358,10 @@ Each run transitions through these states:
 1. `CREATED`
 2. `PLANNING` (LLM parses instruction into a plan)
 3. `RUNNING_INSTAGRAM`
-4. `FINALIZING`
-5. `COMPLETED` or `FAILED`
-
-> **Note:** `RUNNING_TIKTOK` state is skipped (TikTok collection disabled).
+4. `RUNNING_X`
+5. `RUNNING_TIKTOK` (skipped - disabled)
+6. `FINALIZING`
+7. `COMPLETED` or `FAILED`
 
 ### 10.2 Run planning (LLM-driven, structured)
 
@@ -320,11 +370,17 @@ Each run transitions through these states:
 
 **Output:**
 - A structured plan object containing (minimum):
-  - target platforms: Instagram, TikTok, or both
+  - target platforms: Instagram, X, or both (default: both)
   - target counts per platform
   - extracted keywords/hashtags/creator handles
   - time window preference (if stated)
+  - X query strategy (queryType, fromUsers, language, includeRetweets)
   - region preferences (TikTok; if stated)
+
+**Platform detection:**
+- If user mentions "Twitter", "X", "tweets", or "@username" → include X
+- If user mentions "Instagram", "IG", "posts", "#hashtag" → include Instagram
+- If user doesn't specify a platform → collect from BOTH platforms
 
 **Important:** The plan may influence how to query, but must not change the sheet column schema.
 
@@ -332,29 +388,34 @@ Each run transitions through these states:
 
 The system can flexibly decide query parameters, but only within official API capabilities.
 
-#### TikTok (preferred: Research API)
+#### X (Twitter) - TwitterAPI.io Advanced Search
 
-Use Research API video query endpoint
+Use Advanced Search API endpoint:
+- **Endpoint:** `https://api.twitterapi.io/twitter/tweet/advanced_search`
+- **Method:** GET with `X-API-Key` header
 
-**Build query conditions using:**
-- `keyword` (from instruction)
-- `hashtag_name` (from instruction)
-- `region_code` (if specified)
-- `create_date` range (default if not specified)
+**Build query using:**
+- `query` - Combined search query with keywords, hashtags, from:user filters
+- `queryType` - "Latest" (recent) or "Top" (popular)
+- `cursor` - For pagination
 
-**Pagination:**
-- use cursor/search_id per API rules until target count reached or no more results
+**Query syntax support:**
+- Keywords: `"keyword"` or multiple with OR
+- Hashtags: `#hashtag`
+- User filter: `from:username`
+- Date range: `since:YYYY-MM-DD_HH:mm:ss_UTC` and `until:YYYY-MM-DD_HH:mm:ss_UTC`
+- Language: `lang:en`
+- Exclude retweets: `-is:retweet`
 
 **If insufficient results:**
-- expand date range (e.g., last 7 → 30 days)
-- add synonyms/related keywords (LLM-generated)
-- switch `is_random` to true if appropriate to broaden sampling
+- Expand date range (e.g., 7 → 21 days)
+- Switch queryType from Latest to Top
+- Remove restrictive filters
 
-#### TikTok fallback (Display API)
+#### TikTok (DISABLED - preserved for future use)
 
-- Only if Research API is not configured/available
-- Collect what is possible for the authorized user context
-- Missing fields must be blank + memo
+Use Research API video query endpoint with:
+- `keyword`, `hashtag_name`, `region_code`, `create_date` range
 
 #### Instagram (Graph API; professional account required)
 
@@ -372,9 +433,9 @@ Use one of these retrieval strategies (chosen by AI):
 - Do not write duplicate `platform_post_id` rows within the same tab.
 - If duplicates occur from pagination, skip and note in internal logs (not in row memo unless it affects output).
 
-## 11. Video artifact creation rules
+## 11. Video/Post artifact creation rules
 
-### 11.1 TikTok
+### 11.1 TikTok (DISABLED)
 
 Because Research API does not guarantee a direct downloadable video file:
 - Always create a post folder in Drive
@@ -397,6 +458,15 @@ Because Research API does not guarantee a direct downloadable video file:
 - If `thumbnail_url` exists and download is feasible:
   - store `thumbnail.jpg` (optional)
 
+### 11.3 X (Twitter)
+
+- Always create a post folder in Drive
+- Always store `raw.json`
+- Create `watch.html` containing:
+  - a clickable link to the tweet URL
+  - author username for context
+- `drive_url` points to `watch.html`
+
 ## 12. Memo column rules (per-row)
 
 The memo column is mandatory and must be populated only when needed.
@@ -406,6 +476,7 @@ The memo column is mandatory and must be populated only when needed.
 - "video not downloaded (URL too large); stored watch.html instead"
 - "insights edge unavailable for this media; left blank"
 - "TikTok Research API unavailable; used Display API fallback; many fields missing"
+- "Drive artifact creation failed: [error message]"
 
 **Rules:**
 - Must be short (target ≤ 300 characters).
@@ -418,11 +489,14 @@ The memo column is mandatory and must be populated only when needed.
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (default: `gpt-4o`)
 
-**TikTok Research API:**
+**X (Twitter) API:**
+- `X_API_KEY` (TwitterAPI.io API key)
+
+**TikTok Research API (disabled):**
 - `TIKTOK_RESEARCH_CLIENT_KEY`
 - `TIKTOK_RESEARCH_CLIENT_SECRET`
 
-**TikTok Display API (optional):**
+**TikTok Display API (disabled):**
 - `TIKTOK_DISPLAY_CLIENT_KEY`
 - `TIKTOK_DISPLAY_CLIENT_SECRET`
 
@@ -463,7 +537,15 @@ The codebase must be structured by responsibility. Example logical modules:
 - Creates Drive artifacts
 - Writes rows to Instagram tab
 
-**TikTok Collector**
+**X Collector**
+- Uses TwitterAPI.io Advanced Search API
+- Builds search queries from plan
+- Handles pagination with cursors
+- Normalizes fields into required schema
+- Creates Drive artifacts
+- Writes rows to X tab
+
+**TikTok Collector (disabled)**
 - Uses Research API when configured
 - Fallback to Display API when needed
 - Normalizes fields
@@ -504,7 +586,11 @@ The codebase must be structured by responsibility. Example logical modules:
 
 ### Phase 2 — API credential setup (required)
 
-**TikTok Research API:**
+**X (Twitter) API:**
+1. Obtain API key from TwitterAPI.io
+2. Store as `X_API_KEY` in Script Properties
+
+**TikTok Research API (optional - currently disabled):**
 1. Create/apply for a Research project in TikTok developer portal
 2. Obtain `client_key` and `client_secret`
 3. Store in Script Properties
@@ -517,7 +603,11 @@ The codebase must be structured by responsibility. Example logical modules:
 
 ### Phase 3 — Authentication flows (required)
 
-**TikTok Research token retrieval (client credentials):**
+**X (Twitter) - No OAuth needed:**
+- TwitterAPI.io uses simple API key authentication
+- Pass API key in `X-API-Key` header
+
+**TikTok Research token retrieval (client credentials) - disabled:**
 - Store `access_token` and `expires_at` in Script Properties (or in run state cache)
 - Refresh automatically when expired
 
@@ -531,13 +621,18 @@ The codebase must be structured by responsibility. Example logical modules:
 1. Implement "Create run":
    - Generate run ID
    - Create Drive run folder structure
-   - Create spreadsheet with two tabs + headers
+   - Create spreadsheet with tabs + headers (Instagram, X)
 2. Implement run state persistence
 3. Implement batch processing + continuation trigger
 
 ### Phase 5 — Collectors + normalization (required)
 
-**TikTok collector:**
+**X collector:**
+- Advanced Search API query + pagination
+- Build queries from plan keywords/hashtags/users
+- Normalize field names into required column schema
+
+**TikTok collector (disabled):**
 - Research API query + pagination
 - Normalize field names into required column schema
 
@@ -562,7 +657,7 @@ For each post:
    - start run
    - get run status
 3. Display:
-   - running progress
+   - running progress (Instagram and X)
    - spreadsheet link
 
 ### Phase 8 — Reliability hardening (required)
@@ -579,6 +674,7 @@ A run is considered correct when:
 1. A user can open the Web App, submit an instruction, and start a run.
 2. A new spreadsheet is created for each run and contains:
    - Instagram tab
+   - X tab
 3. Each collected post occupies exactly one row in the correct tab.
 4. Columns match the specified schema exactly (names + order).
 5. Each row contains a valid `drive_url` pointing to:
@@ -590,6 +686,7 @@ A run is considered correct when:
 
 ## 17. References (official docs)
 
+- [TwitterAPI.io — API Reference](https://docs.twitterapi.io/api-reference/endpoint/tweet_advanced_search)
 - [TikTok Research API — Getting Started](https://developers.tiktok.com/doc/research-api-get-started)
 - [TikTok Research API — Video Query (fields list)](https://developers.tiktok.com/doc/research-api-specs-query-videos/)
 - [TikTok — Client Access Token Management (client_credentials)](https://developers.tiktok.com/doc/client-access-token-management)

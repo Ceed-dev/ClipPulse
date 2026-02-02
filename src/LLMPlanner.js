@@ -22,14 +22,15 @@ const PLAN_SCHEMA = {
       type: 'array',
       items: {
         type: 'string',
-        enum: ['instagram']
+        enum: ['instagram', 'x']
       },
-      description: 'Which platforms to collect from (currently Instagram only)'
+      description: 'Which platforms to collect from (Instagram and/or X)'
     },
     targetCounts: {
       type: 'object',
       properties: {
         instagram: { type: 'integer', description: 'Number of posts to collect from Instagram' },
+        x: { type: 'integer', description: 'Number of posts to collect from X (Twitter)' },
         tiktok: { type: 'integer', description: 'Number of posts to collect from TikTok' }
       }
     },
@@ -85,6 +86,20 @@ const PLAN_SCHEMA = {
               enum: ['hashtag', 'account', 'mixed']
             },
             hashtagsToSearch: { type: 'array', items: { type: 'string' } }
+          }
+        },
+        x: {
+          type: 'object',
+          properties: {
+            customQuery: { type: 'string', description: 'Custom X search query if needed' },
+            queryType: {
+              type: 'string',
+              enum: ['Latest', 'Top'],
+              description: 'Search type: Latest for recent tweets, Top for popular tweets'
+            },
+            fromUsers: { type: 'array', items: { type: 'string' }, description: 'Specific usernames to search from' },
+            language: { type: 'string', description: 'Language filter (e.g., en, ja)' },
+            includeRetweets: { type: 'boolean', description: 'Whether to include retweets' }
           }
         }
       }
@@ -158,19 +173,29 @@ function parseInstructionToPlan(instruction) {
     return createFallbackPlan(instruction, defaultCount);
   }
 
-  const systemPrompt = `You are a data collection planning assistant for ClipPulse, a tool that collects short-form video data from Instagram.
+  const systemPrompt = `You are a data collection planning assistant for ClipPulse, a tool that collects social media data from Instagram and X (Twitter).
 
 Your task is to parse the user's natural language instruction and create a structured data collection plan.
 
 Guidelines:
 1. Extract keywords, hashtags, and any specific creator handles mentioned
-2. The platform is always Instagram (TikTok collection is currently disabled)
-3. Determine target counts (default: ${defaultCount})
+2. Determine which platforms to collect from:
+   - If user mentions "Twitter", "X", "tweets", or "@username" → include X
+   - If user mentions "Instagram", "IG", "posts", "#hashtag" → include Instagram
+   - If user doesn't specify a platform, collect from BOTH Instagram AND X
+3. Determine target counts per platform (default: ${defaultCount} each)
 4. Identify any time window preferences (e.g., "last 7 days", "this month")
 5. Suggest a query strategy based on the instruction
 
-If the user doesn't specify a count, use ${defaultCount}.
+For X (Twitter) queries:
+- Use keywords and hashtags
+- For specific users, use "from:username" syntax
+- Support date ranges with "since:" and "until:"
+- queryType can be "Latest" (recent tweets) or "Top" (popular tweets)
+
+If the user doesn't specify a count, use ${defaultCount} per platform.
 If hashtags are mentioned (with or without #), include them in the hashtags array without the # symbol.
+If @ mentions are found, extract them as potential usernames.
 
 Current date: ${new Date().toISOString().split('T')[0]}`;
 
@@ -201,9 +226,20 @@ Return a structured JSON plan.`;
     }
 
     // Ensure required fields have defaults
-    plan.targetPlatforms = ['instagram']; // Instagram only (TikTok disabled)
+    plan.targetPlatforms = plan.targetPlatforms || ['instagram', 'x'];
+    // Filter to only supported platforms
+    plan.targetPlatforms = plan.targetPlatforms.filter(p => ['instagram', 'x'].includes(p));
+    if (plan.targetPlatforms.length === 0) {
+      plan.targetPlatforms = ['instagram', 'x'];
+    }
+
     plan.targetCounts = plan.targetCounts || {};
-    plan.targetCounts.instagram = plan.targetCounts.instagram || plan.target_count || defaultCount;
+    plan.targetCounts.instagram = plan.targetPlatforms.includes('instagram')
+      ? (plan.targetCounts.instagram || plan.target_count || defaultCount)
+      : 0;
+    plan.targetCounts.x = plan.targetPlatforms.includes('x')
+      ? (plan.targetCounts.x || plan.target_count || defaultCount)
+      : 0;
     plan.targetCounts.tiktok = 0; // TikTok disabled
 
     // Process keywords - split multi-word strings into individual words
@@ -223,6 +259,14 @@ Return a structured JSON plan.`;
       plan.queryStrategy.instagram.hashtagsToSearch = plan.hashtags.length > 0 ? plan.hashtags : keywords.slice(0, 5);
     }
     plan.queryStrategy.instagram.primaryStrategy = plan.queryStrategy.instagram.primaryStrategy || 'hashtag';
+
+    // Ensure queryStrategy.x is set
+    plan.queryStrategy.x = plan.queryStrategy.x || {};
+    plan.queryStrategy.x.queryType = plan.queryStrategy.x.queryType || 'Latest';
+    // Extract usernames from creatorHandles if present
+    if (plan.creatorHandles && plan.creatorHandles.length > 0) {
+      plan.queryStrategy.x.fromUsers = plan.creatorHandles.map(h => h.replace('@', ''));
+    }
 
     return plan;
 
@@ -244,26 +288,41 @@ function createFallbackPlan(instruction, defaultCount) {
   const hashtagMatches = instruction.match(/#\w+/g) || [];
   const hashtags = hashtagMatches.map(h => h.substring(1));
 
+  // Extract usernames (words starting with @)
+  const usernameMatches = instruction.match(/@\w+/g) || [];
+  const usernames = usernameMatches.map(u => u.substring(1));
+
   // Extract keywords (simple word extraction)
   const words = instruction.toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
     .filter(w => w.length > 3)
-    .filter(w => !['find', 'collect', 'get', 'posts', 'videos', 'about', 'from', 'with', 'only'].includes(w));
+    .filter(w => !['find', 'collect', 'get', 'posts', 'videos', 'tweets', 'about', 'from', 'with', 'only', 'twitter', 'instagram'].includes(w));
 
   // Extract count if mentioned
-  const countMatch = instruction.match(/(\d+)\s*posts?/i);
+  const countMatch = instruction.match(/(\d+)\s*(posts?|tweets?)/i);
   const count = countMatch ? parseInt(countMatch[1]) : defaultCount;
 
+  // Determine platforms from instruction
+  const lowerInstruction = instruction.toLowerCase();
+  const mentionsInstagram = lowerInstruction.includes('instagram') || lowerInstruction.includes(' ig ') || lowerInstruction.includes('posts');
+  const mentionsX = lowerInstruction.includes('twitter') || lowerInstruction.includes(' x ') || lowerInstruction.includes('tweets') || usernames.length > 0;
+
+  // Default to both platforms if none specified
+  const platforms = [];
+  if (mentionsInstagram || (!mentionsInstagram && !mentionsX)) platforms.push('instagram');
+  if (mentionsX || (!mentionsInstagram && !mentionsX)) platforms.push('x');
+
   return {
-    targetPlatforms: ['instagram'], // Instagram only (TikTok disabled)
+    targetPlatforms: platforms,
     targetCounts: {
-      instagram: count,
+      instagram: platforms.includes('instagram') ? count : 0,
+      x: platforms.includes('x') ? count : 0,
       tiktok: 0 // TikTok disabled
     },
     keywords: words.slice(0, 5),
     hashtags: hashtags,
-    creatorHandles: [],
+    creatorHandles: usernames,
     timeWindow: {
       startDate: null,
       endDate: null,
@@ -281,6 +340,11 @@ function createFallbackPlan(instruction, defaultCount) {
       instagram: {
         primaryStrategy: hashtags.length > 0 ? 'hashtag' : 'mixed',
         hashtagsToSearch: hashtags.length > 0 ? hashtags : words.slice(0, 3)
+      },
+      x: {
+        queryType: 'Latest',
+        fromUsers: usernames,
+        includeRetweets: false
       }
     }
   };

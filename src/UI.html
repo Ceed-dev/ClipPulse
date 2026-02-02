@@ -562,16 +562,16 @@
     <label for="instruction">Enter your instruction in natural language:</label>
     <textarea
       id="instruction"
-      placeholder="e.g., Find 50 posts about skincare trends"
+      placeholder="e.g., Find 50 posts about skincare trends from Instagram and X"
     ></textarea>
 
     <div class="examples">
       <div class="examples-title">Examples:</div>
       <ul>
         <li>Find 50 posts about skincare trends</li>
-        <li>Collect 100 Instagram posts about fashion</li>
-        <li>Focus on fitness creators, last 7 days</li>
-        <li>#minimalism #lifestyle 30 posts</li>
+        <li>Collect 30 tweets about AI from @elonmusk</li>
+        <li>Instagram posts about fashion, 100 posts</li>
+        <li>#minimalism #lifestyle from both platforms</li>
       </ul>
     </div>
 
@@ -581,15 +581,15 @@
       </button>
     </div>
 
-    <!-- Data Fields Toggle -->
+    <!-- Data Fields Toggle - Instagram -->
     <div class="data-fields-toggle">
-      <div class="toggle-header" onclick="toggleDataFields()">
-        <span class="toggle-title">What data will be collected?</span>
-        <svg class="toggle-icon" id="toggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="toggle-header" onclick="toggleDataFields('instagram')">
+        <span class="toggle-title">Instagram Data Fields</span>
+        <svg class="toggle-icon" id="toggleIconInstagram" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
       </div>
-      <div class="toggle-content" id="dataFieldsContent">
+      <div class="toggle-content" id="dataFieldsContentInstagram">
         <table class="data-fields-table">
           <thead>
             <tr>
@@ -626,6 +626,57 @@
         </table>
       </div>
     </div>
+
+    <!-- Data Fields Toggle - X (Twitter) -->
+    <div class="data-fields-toggle">
+      <div class="toggle-header" onclick="toggleDataFields('x')">
+        <span class="toggle-title">X (Twitter) Data Fields</span>
+        <svg class="toggle-icon" id="toggleIconX" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+      <div class="toggle-content" id="dataFieldsContentX">
+        <table class="data-fields-table">
+          <thead>
+            <tr>
+              <th>Field Name</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>platform_post_id</td><td>string</td><td>Unique tweet ID</td></tr>
+            <tr><td>create_username</td><td>string</td><td>Username of the tweet author</td></tr>
+            <tr><td>posted_at</td><td>string</td><td>Tweet timestamp</td></tr>
+            <tr><td>text</td><td>string</td><td>Tweet text content</td></tr>
+            <tr><td>post_url</td><td>string</td><td>URL to the tweet</td></tr>
+            <tr><td>source</td><td>string</td><td>Client app used to post the tweet</td></tr>
+            <tr><td>retweet_count</td><td>number</td><td>Number of retweets</td></tr>
+            <tr><td>reply_count</td><td>number</td><td>Number of replies</td></tr>
+            <tr><td>like_count</td><td>number</td><td>Number of likes</td></tr>
+            <tr><td>quote_count</td><td>number</td><td>Number of quote tweets</td></tr>
+            <tr><td>view_count</td><td>number</td><td>Number of views (impressions)</td></tr>
+            <tr><td>lang</td><td>string</td><td>Language code of the tweet</td></tr>
+            <tr><td>is_reply</td><td>boolean</td><td>Whether the tweet is a reply</td></tr>
+            <tr><td>in_reply_to_id</td><td>string</td><td>ID of the tweet being replied to</td></tr>
+            <tr><td>conversation_id</td><td>string</td><td>ID of the conversation thread</td></tr>
+            <tr><td>author_id</td><td>string</td><td>Unique ID of the author</td></tr>
+            <tr><td>author_name</td><td>string</td><td>Author's username</td></tr>
+            <tr><td>author_display_name</td><td>string</td><td>Author's display name</td></tr>
+            <tr><td>author_followers</td><td>number</td><td>Author's follower count</td></tr>
+            <tr><td>author_following</td><td>number</td><td>Author's following count</td></tr>
+            <tr><td>author_is_blue_verified</td><td>boolean</td><td>Whether author has blue verification</td></tr>
+            <tr><td>author_created_at</td><td>string</td><td>Author account creation date</td></tr>
+            <tr><td>hashtags</td><td>JSON string</td><td>Hashtags in the tweet</td></tr>
+            <tr><td>urls</td><td>JSON string</td><td>URLs included in the tweet</td></tr>
+            <tr><td>user_mentions</td><td>JSON string</td><td>Users mentioned in the tweet</td></tr>
+            <tr><td>media</td><td>JSON string</td><td>Media attachments (images, videos)</td></tr>
+            <tr><td>drive_url</td><td>string</td><td>Google Drive URL to stored artifact</td></tr>
+            <tr><td>memo</td><td>string</td><td>Notes on missing fields or errors</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- Status Section -->
@@ -650,6 +701,15 @@
           <span class="progress-value" id="igProgress">0 / 0</span>
           <div class="progress-bar">
             <div class="progress-bar-fill animated" id="igProgressBar" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">X (Twitter)</span>
+        <div style="display: flex; align-items: center;">
+          <span class="progress-value" id="xProgress">0 / 0</span>
+          <div class="progress-bar">
+            <div class="progress-bar-fill animated" id="xProgressBar" style="width: 0%"></div>
           </div>
         </div>
       </div>
@@ -702,9 +762,9 @@
     initTheme();
 
     // Toggle data fields visibility
-    function toggleDataFields() {
-      const content = document.getElementById('dataFieldsContent');
-      const icon = document.getElementById('toggleIcon');
+    function toggleDataFields(platform) {
+      const content = document.getElementById('dataFieldsContent' + (platform === 'x' ? 'X' : 'Instagram'));
+      const icon = document.getElementById('toggleIcon' + (platform === 'x' ? 'X' : 'Instagram'));
       content.classList.toggle('open');
       icon.classList.toggle('open');
     }
@@ -762,6 +822,8 @@
         status: result.status,
         instagramCollected: 0,
         instagramTarget: result.plan?.targetCounts?.instagram || 0,
+        xCollected: 0,
+        xTarget: result.plan?.targetCounts?.x || 0,
         tiktokCollected: 0,
         tiktokTarget: result.plan?.targetCounts?.tiktok || 0,
         lastMessage: 'Starting collection...'
@@ -811,19 +873,28 @@
         statusMessage.classList.add('hidden');
       }
 
-      // Update progress
+      // Update Instagram progress
       const igTarget = status.instagramTarget || 0;
       document.getElementById('igProgress').textContent =
         `${status.instagramCollected || 0} / ${igTarget}`;
 
-      // Update progress bar
       const igPercent = igTarget > 0 ? (status.instagramCollected / igTarget) * 100 : 0;
-      const progressBar = document.getElementById('igProgressBar');
-      progressBar.style.width = Math.min(igPercent, 100) + '%';
+      const igProgressBar = document.getElementById('igProgressBar');
+      igProgressBar.style.width = Math.min(igPercent, 100) + '%';
+
+      // Update X (Twitter) progress
+      const xTarget = status.xTarget || 0;
+      document.getElementById('xProgress').textContent =
+        `${status.xCollected || 0} / ${xTarget}`;
+
+      const xPercent = xTarget > 0 ? (status.xCollected / xTarget) * 100 : 0;
+      const xProgressBar = document.getElementById('xProgressBar');
+      xProgressBar.style.width = Math.min(xPercent, 100) + '%';
 
       // Remove animation when complete
       if (!isProcessing) {
-        progressBar.classList.remove('animated');
+        igProgressBar.classList.remove('animated');
+        xProgressBar.classList.remove('animated');
       }
 
       // Update message box for errors
@@ -856,9 +927,15 @@
         case 'PLANNING':
           return 'Analyzing your instruction and creating collection plan...';
         case 'RUNNING_INSTAGRAM':
-          const collected = status.instagramCollected || 0;
-          const target = status.instagramTarget || 0;
-          return `Collecting Instagram posts... (${collected}/${target})`;
+          const igCollected = status.instagramCollected || 0;
+          const igTarget = status.instagramTarget || 0;
+          return `Collecting Instagram posts... (${igCollected}/${igTarget})`;
+        case 'RUNNING_X':
+          const xCollected = status.xCollected || 0;
+          const xTarget = status.xTarget || 0;
+          return `Collecting X (Twitter) posts... (${xCollected}/${xTarget})`;
+        case 'RUNNING_TIKTOK':
+          return 'Collecting TikTok posts...';
         case 'FINALIZING':
           return 'Finalizing spreadsheet...';
         default:
@@ -871,6 +948,7 @@
         'CREATED': 'Starting',
         'PLANNING': 'Planning',
         'RUNNING_INSTAGRAM': 'Collecting Instagram',
+        'RUNNING_X': 'Collecting X',
         'RUNNING_TIKTOK': 'Collecting TikTok',
         'FINALIZING': 'Finalizing',
         'COMPLETED': 'Completed',

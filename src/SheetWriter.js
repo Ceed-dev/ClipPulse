@@ -3,7 +3,7 @@
  * Creates and manages spreadsheet tabs and writes data rows
  *
  * Specification section 9 defines the spreadsheet output format:
- * - One spreadsheet per run with one tab: Instagram (TikTok disabled)
+ * - One spreadsheet per run with tabs: Instagram and X (TikTok disabled)
  * - Fixed column schemas for each tab
  * - Batch row appending (never per-cell loops)
  */
@@ -41,6 +41,41 @@ const TIKTOK_COLUMNS = [
 ];
 
 /**
+ * X (Twitter) tab columns based on TwitterAPI.io Advanced Search response
+ * Order must match exactly
+ */
+const X_COLUMNS = [
+  'platform_post_id',
+  'create_username',
+  'posted_at',
+  'text',
+  'post_url',
+  'source',
+  'retweet_count',
+  'reply_count',
+  'like_count',
+  'quote_count',
+  'view_count',
+  'lang',
+  'is_reply',
+  'in_reply_to_id',
+  'conversation_id',
+  'author_id',
+  'author_name',
+  'author_display_name',
+  'author_followers',
+  'author_following',
+  'author_is_blue_verified',
+  'author_created_at',
+  'hashtags',
+  'urls',
+  'user_mentions',
+  'media',
+  'drive_url',
+  'memo'
+];
+
+/**
  * Instagram tab columns as defined in specification section 9.4
  * Order must match exactly
  */
@@ -71,7 +106,7 @@ const INSTAGRAM_COLUMNS = [
 ];
 
 /**
- * Create a new spreadsheet for a run with Instagram and TikTok tabs
+ * Create a new spreadsheet for a run with Instagram and X tabs
  * @param {string} runId - The run ID for naming the spreadsheet
  * @returns {Object} Object containing spreadsheetId and spreadsheetUrl
  */
@@ -84,14 +119,17 @@ function createRunSpreadsheet(runId) {
   const defaultSheet = spreadsheet.getSheets()[0];
   defaultSheet.setName('Instagram');
 
-  // Note: TikTok sheet creation disabled - Instagram only mode
-  // const tiktokSheet = spreadsheet.insertSheet('TikTok');
-
   // Add headers to Instagram sheet
   writeHeaders(defaultSheet, INSTAGRAM_COLUMNS);
-
-  // Format header row
   formatHeaderRow(defaultSheet, INSTAGRAM_COLUMNS.length);
+
+  // Create X (Twitter) sheet
+  const xSheet = spreadsheet.insertSheet('X');
+  writeHeaders(xSheet, X_COLUMNS);
+  formatHeaderRow(xSheet, X_COLUMNS.length);
+
+  // Note: TikTok sheet creation disabled
+  // const tiktokSheet = spreadsheet.insertSheet('TikTok');
 
   return {
     spreadsheetId: spreadsheetId,
@@ -129,22 +167,36 @@ function formatHeaderRow(sheet, columnCount) {
 /**
  * Get the appropriate sheet for a platform
  * @param {string} spreadsheetId - The spreadsheet ID
- * @param {string} platform - 'instagram' or 'tiktok'
+ * @param {string} platform - 'instagram', 'x', or 'tiktok'
  * @returns {GoogleAppsScript.Spreadsheet.Sheet} The sheet
  */
 function getSheetForPlatform(spreadsheetId, platform) {
   const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-  const sheetName = platform === 'instagram' ? 'Instagram' : 'TikTok';
+  const sheetNameMap = {
+    'instagram': 'Instagram',
+    'x': 'X',
+    'tiktok': 'TikTok'
+  };
+  const sheetName = sheetNameMap[platform] || 'Instagram';
   return spreadsheet.getSheetByName(sheetName);
 }
 
 /**
  * Get the columns for a platform
- * @param {string} platform - 'instagram' or 'tiktok'
+ * @param {string} platform - 'instagram', 'x', or 'tiktok'
  * @returns {string[]} Array of column names
  */
 function getColumnsForPlatform(platform) {
-  return platform === 'instagram' ? INSTAGRAM_COLUMNS : TIKTOK_COLUMNS;
+  switch (platform) {
+    case 'instagram':
+      return INSTAGRAM_COLUMNS;
+    case 'x':
+      return X_COLUMNS;
+    case 'tiktok':
+      return TIKTOK_COLUMNS;
+    default:
+      return INSTAGRAM_COLUMNS;
+  }
 }
 
 /**
@@ -329,14 +381,57 @@ function updateRowMemo(spreadsheetId, platform, rowIndex, memo) {
 }
 
 /**
+ * Normalize X (Twitter) API response to match column schema
+ * @param {Object} apiResponse - Raw X API response for a tweet
+ * @param {string} driveUrl - The Drive URL for the artifact
+ * @param {string} memo - Any memo notes
+ * @returns {Object} Normalized post data matching column schema
+ */
+function normalizeXPost(apiResponse, driveUrl, memo = '') {
+  const author = apiResponse.author || {};
+  const entities = apiResponse.entities || {};
+
+  return {
+    platform_post_id: String(apiResponse.id || ''),
+    create_username: author.userName || '',
+    posted_at: apiResponse.createdAt || '',
+    text: apiResponse.text || '',
+    post_url: apiResponse.url || '',
+    source: apiResponse.source || '',
+    retweet_count: apiResponse.retweetCount ?? '',
+    reply_count: apiResponse.replyCount ?? '',
+    like_count: apiResponse.likeCount ?? '',
+    quote_count: apiResponse.quoteCount ?? '',
+    view_count: apiResponse.viewCount ?? '',
+    lang: apiResponse.lang || '',
+    is_reply: apiResponse.isReply ?? '',
+    in_reply_to_id: apiResponse.inReplyToId || '',
+    conversation_id: apiResponse.conversationId || '',
+    author_id: author.id || '',
+    author_name: author.userName || '',
+    author_display_name: author.name || '',
+    author_followers: author.followers ?? '',
+    author_following: author.following ?? '',
+    author_is_blue_verified: author.isBlueVerified ?? '',
+    author_created_at: author.createdAt || '',
+    hashtags: entities.hashtags || [],
+    urls: entities.urls || [],
+    user_mentions: entities.user_mentions || [],
+    media: apiResponse.media || apiResponse.extendedEntities?.media || [],
+    drive_url: driveUrl,
+    memo: memo
+  };
+}
+
+/**
  * Finalize the spreadsheet (auto-resize columns, etc.)
  * @param {string} spreadsheetId - The spreadsheet ID
  */
 function finalizeSpreadsheet(spreadsheetId) {
   const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
 
-  // Process Instagram sheet only (TikTok disabled)
-  ['Instagram'].forEach(sheetName => {
+  // Process Instagram and X sheets (TikTok disabled)
+  ['Instagram', 'X'].forEach(sheetName => {
     const sheet = spreadsheet.getSheetByName(sheetName);
     if (sheet) {
       const lastCol = sheet.getLastColumn();

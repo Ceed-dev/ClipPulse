@@ -248,6 +248,141 @@ function collectInstagramWithMocks(runId, plan, onProgress) {
 }
 
 /**
+ * Generate mock X (Twitter) data
+ * @param {number} count - Number of mock tweets to generate
+ * @param {Object} plan - The collection plan (for context)
+ * @returns {Object[]} Array of mock tweet objects
+ */
+function generateMockXTweets(count, plan) {
+  const tweets = [];
+  const keywords = plan.keywords || ['tech', 'AI', 'innovation'];
+  const hashtags = plan.hashtags || ['trending', 'viral'];
+
+  for (let i = 0; i < count; i++) {
+    const tweetId = `mock_x_${Date.now()}_${i}`;
+    const createdAt = new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toISOString();
+    const authorId = `mock_author_${i % 10}`;
+
+    tweets.push({
+      type: 'tweet',
+      id: tweetId,
+      url: `https://twitter.com/mock_user_${i % 10}/status/${tweetId}`,
+      text: `Mock tweet about ${keywords[i % keywords.length]} #${hashtags[i % hashtags.length]}`,
+      source: 'Mock Client',
+      retweetCount: Math.floor(Math.random() * 10000),
+      replyCount: Math.floor(Math.random() * 500),
+      likeCount: Math.floor(Math.random() * 50000),
+      quoteCount: Math.floor(Math.random() * 1000),
+      viewCount: Math.floor(Math.random() * 500000),
+      createdAt: createdAt,
+      lang: 'en',
+      isReply: false,
+      inReplyToId: null,
+      conversationId: tweetId,
+      author: {
+        type: 'user',
+        id: authorId,
+        url: `https://twitter.com/mock_user_${i % 10}`,
+        userName: `mock_user_${i % 10}`,
+        name: `Mock User ${i % 10}`,
+        isBlueVerified: Math.random() > 0.8,
+        followers: Math.floor(Math.random() * 100000),
+        following: Math.floor(Math.random() * 5000),
+        createdAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      entities: {
+        hashtags: hashtags.slice(0, 2).map(h => ({ text: h })),
+        urls: [],
+        userMentions: []
+      },
+      media: []
+    });
+  }
+
+  return tweets;
+}
+
+/**
+ * Mock X (Twitter) API search
+ * @param {Object} params - Search parameters
+ * @returns {Object} Mock API response
+ */
+function mockXSearch(params) {
+  if (!isMockMode()) {
+    throw new Error('Mock mode not enabled');
+  }
+
+  const count = 20; // Simulates API page size
+  const plan = params.plan || { keywords: [], hashtags: [] };
+
+  const tweets = generateMockXTweets(count, plan);
+
+  return {
+    tweets: tweets,
+    has_next_page: tweets.length >= count,
+    next_cursor: tweets.length >= count ? `mock_x_cursor_${Date.now()}` : null
+  };
+}
+
+/**
+ * Wrapper for X collection that uses mocks when enabled
+ * @param {string} runId - Run ID
+ * @param {Object} plan - Collection plan
+ * @param {function} onProgress - Progress callback
+ * @returns {Object} Collection result
+ */
+function collectXWithMocks(runId, plan, onProgress) {
+  if (!isMockMode()) {
+    return collectXTweets(runId, plan, onProgress);
+  }
+
+  console.log('MOCK MODE: Simulating X (Twitter) collection');
+
+  const state = loadRunState(runId);
+  const targetCount = plan.targetCounts.x || 0;
+
+  if (targetCount === 0) {
+    return { collected: 0, skipped: 0 };
+  }
+
+  const mockTweets = generateMockXTweets(targetCount, plan);
+  const postsToWrite = [];
+
+  for (const tweet of mockTweets) {
+    const tweetId = String(tweet.id);
+
+    if (isPostProcessed(runId, 'x', tweetId)) {
+      continue;
+    }
+
+    const artifactResult = mockCreatePostArtifacts(
+      state.xFolderId,
+      tweetId,
+      {
+        post_url: tweet.url,
+        create_username: tweet.author?.userName
+      },
+      tweet,
+      'x'
+    );
+
+    const normalizedPost = normalizeXPost(tweet, artifactResult.driveUrl, 'MOCK DATA');
+    postsToWrite.push(normalizedPost);
+    addProcessedPostId(runId, 'x', tweetId);
+  }
+
+  // Write to spreadsheet
+  appendRowsBatch(state.spreadsheetId, 'x', postsToWrite);
+  updateXProgress(runId, { collected: postsToWrite.length });
+
+  if (onProgress) {
+    onProgress({ platform: 'x', collected: postsToWrite.length, target: targetCount });
+  }
+
+  return { collected: postsToWrite.length, skipped: 0 };
+}
+
+/**
  * Enable mock mode
  */
 function enableMockMode() {
