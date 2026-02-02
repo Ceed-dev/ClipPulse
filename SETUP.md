@@ -56,7 +56,7 @@ Then go to **Project Settings > Script Properties** and add the following:
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `OPENAI_MODEL` | `gpt-5.2-pro` | OpenAI model to use |
+| `OPENAI_MODEL` | `gpt-4o` | OpenAI model to use |
 | `META_GRAPH_API_VERSION` | `v18.0` | Instagram Graph API version |
 | `MAX_POSTS_PER_PLATFORM_DEFAULT` | `30` | Default posts to collect |
 | `BATCH_SIZE` | `15` | Posts per batch |

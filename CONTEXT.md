@@ -92,6 +92,33 @@ These changes were made in previous sessions and relate to:
 - Display API: Fallback but disabled
 - Code preserved in `TikTokCollector.js` for future reactivation
 
+### 2026-02-02 - Git Push Issue and Transfer to Local (Continued)
+
+**Participants:** Human + Claude Opus 4.5
+
+**Context:**
+After completing all documentation updates and creating the commit, we encountered a Git push authentication issue on the VM environment.
+
+**Issue:**
+- VM uses HTTPS remote URL (`https://github.com/Ceed-dev/ClipPulse.git`)
+- No credential helper configured on VM
+- GitHub requires Personal Access Token (PAT) for HTTPS authentication (password auth deprecated since 2021)
+- VM environment cannot handle interactive authentication prompts
+
+**Commit Status:**
+- **Commit created successfully:** `dbedb79`
+- **Commit message:** "Update documentation and add architecture files"
+- **Files in commit:** 10 files (1048 insertions, 62 deletions)
+- **Push status:** NOT PUSHED (pending)
+
+**What Needs to Be Done (on Local Machine):**
+1. Transfer this project to local machine (or pull if already cloned)
+2. Run `git push origin main` from local (where credential helper is configured)
+3. After push succeeds, VM can sync via `git pull`
+
+**Resolution:**
+Human decided to transfer the project directly to local machine (`~/Programming/`) and continue work there. The VM will later sync via `git pull` after the local push succeeds.
+
 ## Guidelines for Future Sessions
 
 1. **Before Making Changes:** Always read this CONTEXT.md file first
@@ -99,3 +126,4 @@ These changes were made in previous sessions and relate to:
 3. **Documentation:** Keep README.md and code comments in sync
 4. **Commits:** Verify no sensitive information before committing
 5. **TikTok:** Code exists but is disabled; do not remove unless explicitly requested
+6. **Git Push on VM:** VM lacks credential helper; push from local machine instead
