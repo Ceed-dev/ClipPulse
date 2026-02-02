@@ -43,7 +43,7 @@ const CONFIG_KEYS = {
  * Default values for operational configuration
  */
 const CONFIG_DEFAULTS = {
-  OPENAI_MODEL: 'gpt-5.2-pro',
+  OPENAI_MODEL: 'gpt-4o',
   META_GRAPH_API_VERSION: 'v18.0',
   MAX_POSTS_PER_PLATFORM_DEFAULT: 30,
   BATCH_SIZE: 15,

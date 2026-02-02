@@ -3,7 +3,7 @@
  * Creates and manages spreadsheet tabs and writes data rows
  *
  * Specification section 9 defines the spreadsheet output format:
- * - One spreadsheet per run with two tabs: Instagram and TikTok
+ * - One spreadsheet per run with one tab: Instagram (TikTok disabled)
  * - Fixed column schemas for each tab
  * - Batch row appending (never per-cell loops)
  */

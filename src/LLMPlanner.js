@@ -1,8 +1,8 @@
 /**
  * LLMPlanner.js
- * Calls OpenAI Responses API to parse user instructions and generate plans
+ * Calls OpenAI Chat Completions API to parse user instructions and generate plans
  *
- * Uses GPT-5.2 Pro with structured outputs as specified in section 5.4
+ * Uses GPT-4o with structured outputs (JSON mode) as specified in section 5.4
  *
  * Functions:
  * - Parse natural language instruction into structured plan
@@ -94,7 +94,7 @@ const PLAN_SCHEMA = {
 };
 
 /**
- * Call OpenAI Responses API
+ * Call OpenAI Chat Completions API
  * @param {Object} params - API parameters
  * @param {string} params.systemPrompt - System prompt
  * @param {string} params.userPrompt - User prompt
@@ -111,25 +111,18 @@ function callOpenAI(params) {
 
   const requestBody = {
     model: model,
-    input: params.userPrompt,
-    instructions: params.systemPrompt
+    messages: [
+      { role: 'system', content: params.systemPrompt },
+      { role: 'user', content: params.userPrompt }
+    ]
   };
 
-  // Add response format for structured outputs
+  // Add response format for structured outputs (JSON mode)
   if (params.responseFormat) {
-    requestBody.text = {
-      format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'plan',
-          schema: params.responseFormat,
-          strict: true
-        }
-      }
-    };
+    requestBody.response_format = { type: 'json_object' };
   }
 
-  const response = UrlFetchApp.fetch('https://api.openai.com/v1/responses', {
+  const response = UrlFetchApp.fetch('https://api.openai.com/v1/chat/completions', {
     method: 'post',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -210,10 +203,26 @@ Return a structured JSON plan.`;
     // Ensure required fields have defaults
     plan.targetPlatforms = ['instagram']; // Instagram only (TikTok disabled)
     plan.targetCounts = plan.targetCounts || {};
-    plan.targetCounts.instagram = plan.targetCounts.instagram || defaultCount;
+    plan.targetCounts.instagram = plan.targetCounts.instagram || plan.target_count || defaultCount;
     plan.targetCounts.tiktok = 0; // TikTok disabled
-    plan.keywords = plan.keywords || [];
+
+    // Process keywords - split multi-word strings into individual words
+    let keywords = plan.keywords || [];
+    if (keywords.length > 0) {
+      keywords = keywords.flatMap(k =>
+        k.includes(' ') ? k.split(/\s+/).filter(w => w.length > 2) : [k]
+      );
+    }
+    plan.keywords = keywords;
     plan.hashtags = plan.hashtags || [];
+
+    // Ensure queryStrategy.instagram.hashtagsToSearch is set
+    plan.queryStrategy = plan.queryStrategy || {};
+    plan.queryStrategy.instagram = plan.queryStrategy.instagram || {};
+    if (!plan.queryStrategy.instagram.hashtagsToSearch || plan.queryStrategy.instagram.hashtagsToSearch.length === 0) {
+      plan.queryStrategy.instagram.hashtagsToSearch = plan.hashtags.length > 0 ? plan.hashtags : keywords.slice(0, 5);
+    }
+    plan.queryStrategy.instagram.primaryStrategy = plan.queryStrategy.instagram.primaryStrategy || 'hashtag';
 
     return plan;
 

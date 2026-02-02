@@ -1,10 +1,8 @@
 # ClipPulse — Specification (Short-Video Trend Collector)
 
-**Document version:** 1.0<br>
-**Last updated:** 2026-01-22<br>
+**Document version:** 1.1<br>
+**Last updated:** 2026-02-02<br>
 **Status:** Final (implementation-ready)
-
----
 
 ## 1. Overview
 
@@ -98,7 +96,7 @@ This preserves the requirement: Drive URL exists and the video is watchable via 
 - Run manifest JSON
 
 **Google Sheets:**
-- One spreadsheet per run, two tabs
+- One spreadsheet per run, one tab (Instagram only; TikTok tab disabled)
 
 ### 5.3 External APIs
 
@@ -108,8 +106,8 @@ This preserves the requirement: Drive URL exists and the video is watchable via 
 
 ### 5.4 AI/LLM
 
-**OpenAI GPT-5.2 Pro via Responses API**
-- Model: `gpt-5.2-pro`
+**OpenAI GPT-4o via Chat Completions API**
+- Model: `gpt-4o` (configurable via `OPENAI_MODEL` Script Property)
 
 **Used for:**
 - Parsing the user's natural-language instruction into a structured plan
@@ -224,8 +222,7 @@ For each row, `drive_url` must point to the primary artifact:
 ### 9.1 Spreadsheet creation rules
 
 - Each execution creates one new spreadsheet
-- It contains one tab:
-  - Instagram
+- It contains one tab: Instagram (TikTok tab is disabled)
 - The tab has:
   - Header row (row 1)
   - Data rows starting at row 2
@@ -419,7 +416,7 @@ The memo column is mandatory and must be populated only when needed.
 **Minimum required keys:**
 - `CLIPPULSE_ROOT_FOLDER_ID`
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL` (default: `gpt-5.2-pro`)
+- `OPENAI_MODEL` (default: `gpt-4o`)
 
 **TikTok Research API:**
 - `TIKTOK_RESEARCH_CLIENT_KEY`
@@ -485,7 +482,7 @@ The codebase must be structured by responsibility. Example logical modules:
 - Saves media files when possible
 
 **LLM Planner**
-- Calls OpenAI Responses API
+- Calls OpenAI Chat Completions API
 - Produces structured plan
 - Produces concise memo messages when needed
 
@@ -503,7 +500,7 @@ The codebase must be structured by responsibility. Example logical modules:
 4. Add Script Properties:
    - `CLIPPULSE_ROOT_FOLDER_ID`
    - `OPENAI_API_KEY`
-   - `OPENAI_MODEL` = `gpt-5.2-pro`
+   - `OPENAI_MODEL` = `gpt-4o` (or leave unset to use default)
 
 ### Phase 2 — API credential setup (required)
 
@@ -599,6 +596,8 @@ A run is considered correct when:
 - [TikTok Display API — Video Query overview](https://developers.tiktok.com/doc/tiktok-api-v2-video-query)
 - [Apps Script Quotas (runtime, triggers, urlfetch limits)](https://developers.google.com/apps-script/guides/services/quotas)
 - [Apps Script OAuth2 Library (googleworkspace/apps-script-oauth2)](https://github.com/googleworkspace/apps-script-oauth2)
-- [OpenAI — Responses API Reference](https://platform.openai.com/docs/api-reference/responses)
-- [OpenAI — Using GPT-5.2 (model names)](https://platform.openai.com/docs/guides/latest-model)
+- [Instagram Graph API — Overview](https://developers.facebook.com/docs/instagram-api/)
+- [Meta for Developers — Access Tokens](https://developers.facebook.com/docs/facebook-login/guides/access-tokens)
+- [OpenAI — Chat Completions API Reference](https://platform.openai.com/docs/api-reference/chat)
+- [OpenAI — Models](https://platform.openai.com/docs/models)
 - [OpenAI — Structured Outputs guide](https://platform.openai.com/docs/guides/structured-outputs)

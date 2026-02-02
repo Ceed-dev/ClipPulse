@@ -239,6 +239,10 @@ function debugGetAllProperties() {
       masked[key] = props[key];
     }
   }
+
+  console.log('=== Script Properties ===');
+  console.log(JSON.stringify(masked, null, 2));
+
   return masked;
 }
 
@@ -295,3 +299,523 @@ function checkStatus() {
 // startRun(instruction) - defined in Orchestrator.js
 // getRunStatus(runId) - defined in Orchestrator.js
 // cancelRun(runId) - defined in Orchestrator.js
+
+// ============================================================
+// Debug Test Functions for Instagram API
+// ============================================================
+
+/**
+ * Test hashtag search functionality
+ * Run this to verify hashtag search is working
+ */
+function testHashtagSearch() {
+  console.log('=== Testing Hashtag Search ===');
+
+  const testHashtags = ['skincare', 'beauty', 'fashion'];
+
+  for (const hashtag of testHashtags) {
+    console.log(`\nSearching for hashtag: ${hashtag}`);
+    try {
+      const hashtagId = searchHashtagId(hashtag);
+      if (hashtagId) {
+        console.log(`✓ Found hashtag ID: ${hashtagId}`);
+
+        // Try to get top media
+        console.log('Attempting to get top media...');
+        const topMedia = getHashtagTopMedia(hashtagId, 3);
+        console.log(`✓ Got ${topMedia.media.length} top media items`);
+
+        if (topMedia.media.length > 0) {
+          console.log('First media item:', JSON.stringify(topMedia.media[0], null, 2));
+        }
+
+        return { success: true, hashtagId, mediaCount: topMedia.media.length };
+      } else {
+        console.log(`✗ Hashtag not found: ${hashtag}`);
+      }
+    } catch (e) {
+      console.log(`✗ Error searching hashtag "${hashtag}": ${e.message}`);
+      console.log('Full error:', e);
+    }
+  }
+
+  return { success: false, message: 'No hashtags found' };
+}
+
+/**
+ * Test getting own account media
+ * This is the fallback when hashtag search fails
+ */
+function testOwnAccountMedia() {
+  console.log('=== Testing Own Account Media ===');
+
+  try {
+    const result = getOwnAccountMedia(5);
+    console.log(`Got ${result.media.length} media items from own account`);
+
+    if (result.media.length > 0) {
+      console.log('First media item:', JSON.stringify(result.media[0], null, 2));
+    }
+
+    return { success: true, mediaCount: result.media.length, media: result.media };
+  } catch (e) {
+    console.log('Error:', e.message);
+    return { success: false, message: e.message };
+  }
+}
+
+/**
+ * Test the full Web App flow to identify where the problem is
+ */
+function testWebAppFlow() {
+  console.log('=== Testing Web App Flow ===');
+
+  const instruction = 'Find 5 posts about skincare trends';
+  console.log('Instruction:', instruction);
+
+  // Step 1: Parse instruction to plan
+  console.log('\n--- Step 1: Parse instruction to plan ---');
+  let plan;
+  try {
+    plan = parseInstructionToPlan(instruction);
+    console.log('Plan created:', JSON.stringify(plan, null, 2));
+  } catch (e) {
+    console.log('Error creating plan:', e.message);
+    return { success: false, step: 1, error: e.message };
+  }
+
+  // Step 2: Check what hashtags will be searched
+  console.log('\n--- Step 2: Check hashtags to search ---');
+  const hashtagsToSearch = plan.queryStrategy?.instagram?.hashtagsToSearch ||
+    plan.hashtags ||
+    plan.keywords?.slice(0, 3) ||
+    [];
+  console.log('Hashtags to search:', hashtagsToSearch);
+
+  if (hashtagsToSearch.length === 0) {
+    console.log('ERROR: No hashtags to search!');
+    return { success: false, step: 2, error: 'No hashtags' };
+  }
+
+  // Step 3: Try to search first hashtag
+  console.log('\n--- Step 3: Search first hashtag ---');
+  const firstHashtag = hashtagsToSearch[0];
+  console.log('Searching for:', firstHashtag);
+
+  try {
+    const hashtagId = searchHashtagId(firstHashtag);
+    console.log('Hashtag ID:', hashtagId);
+
+    if (!hashtagId) {
+      console.log('ERROR: Hashtag not found');
+      return { success: false, step: 3, error: 'Hashtag not found' };
+    }
+
+    // Step 4: Get top media
+    console.log('\n--- Step 4: Get top media ---');
+    const topMedia = getHashtagTopMedia(hashtagId, 5);
+    console.log('Got', topMedia.media.length, 'media items');
+
+    if (topMedia.media.length > 0) {
+      console.log('First media:', JSON.stringify(topMedia.media[0], null, 2));
+    }
+
+    return {
+      success: true,
+      plan: plan,
+      hashtagsToSearch: hashtagsToSearch,
+      mediaCount: topMedia.media.length
+    };
+  } catch (e) {
+    console.log('Error:', e.message);
+    return { success: false, step: 3, error: e.message };
+  }
+}
+
+/**
+ * Test the full collection process step by step
+ * This helps identify where errors occur
+ */
+function testFullCollectionProcess() {
+  console.log('=== Testing Full Collection Process ===');
+
+  // Step 1: Get hashtag media
+  console.log('\n--- Step 1: Get hashtag media ---');
+  let media;
+  try {
+    const hashtagId = searchHashtagId('skincare');
+    console.log('Hashtag ID:', hashtagId);
+
+    const topMedia = getHashtagTopMedia(hashtagId, 3);
+    console.log('Got media count:', topMedia.media.length);
+
+    if (topMedia.media.length === 0) {
+      console.log('No media found, stopping test');
+      return { success: false, step: 1, message: 'No media found' };
+    }
+
+    media = topMedia.media[0];
+    console.log('First media:', JSON.stringify(media, null, 2));
+  } catch (e) {
+    console.log('Step 1 Error:', e.message);
+    return { success: false, step: 1, error: e.message };
+  }
+
+  // Step 2: Test normalization
+  console.log('\n--- Step 2: Test normalization ---');
+  try {
+    const normalized = normalizeInstagramPost(media, '', 'test memo');
+    console.log('Normalized post:', JSON.stringify(normalized, null, 2));
+  } catch (e) {
+    console.log('Step 2 Error:', e.message);
+    console.log('Full error:', e);
+    return { success: false, step: 2, error: e.message };
+  }
+
+  // Step 3: Test spreadsheet write (create temp spreadsheet)
+  console.log('\n--- Step 3: Test spreadsheet write ---');
+  try {
+    const ss = SpreadsheetApp.create('Test_ClipPulse_' + Date.now());
+    const sheet = ss.getActiveSheet();
+    sheet.setName('Instagram');
+
+    // Write header using getColumnsForPlatform
+    const headers = getColumnsForPlatform('instagram');
+    console.log('Headers count:', headers.length);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+    // Write data using postDataToRow
+    const normalized = normalizeInstagramPost(media, '', 'test');
+    const row = postDataToRow(normalized, headers);
+    console.log('Row data count:', row.length);
+    sheet.getRange(2, 1, 1, row.length).setValues([row]);
+
+    console.log('Spreadsheet created:', ss.getUrl());
+
+    // Clean up - delete test spreadsheet
+    DriveApp.getFileById(ss.getId()).setTrashed(true);
+    console.log('Test spreadsheet deleted');
+
+    return { success: true, message: 'All steps passed' };
+  } catch (e) {
+    console.log('Step 3 Error:', e.message);
+    console.log('Full error:', e);
+    return { success: false, step: 3, error: e.message };
+  }
+}
+
+/**
+ * Test the actual collection with minimal processing
+ * This bypasses artifact creation to isolate the issue
+ */
+function testMinimalCollection() {
+  console.log('=== Testing Minimal Collection ===');
+
+  try {
+    // Step 1: Get media
+    console.log('Getting hashtag media...');
+    const hashtagId = searchHashtagId('skincare');
+    const topMedia = getHashtagTopMedia(hashtagId, 3);
+    console.log('Got', topMedia.media.length, 'media items');
+
+    if (topMedia.media.length === 0) {
+      return { success: false, message: 'No media found' };
+    }
+
+    // Step 2: Create test spreadsheet
+    console.log('Creating spreadsheet...');
+    const result = createRunSpreadsheet('test_' + Date.now());
+    console.log('Spreadsheet ID:', result.spreadsheetId);
+
+    // Step 3: Write data directly using appendRowsBatch
+    console.log('Writing data...');
+    const normalizedPosts = topMedia.media.map(m => normalizeInstagramPost(m, '', 'test'));
+    console.log('Normalized posts count:', normalizedPosts.length);
+
+    const rowsWritten = appendRowsBatch(result.spreadsheetId, 'instagram', normalizedPosts);
+    console.log('Rows written:', rowsWritten);
+
+    console.log('Spreadsheet URL:', result.spreadsheetUrl);
+
+    return {
+      success: true,
+      spreadsheetUrl: result.spreadsheetUrl,
+      rowsWritten: rowsWritten
+    };
+  } catch (e) {
+    console.log('Error:', e.message);
+    console.log('Full error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Test hashtag collection with Drive artifact creation
+ * This tests the full flow including Drive folders and watch.html creation
+ */
+function testHashtagCollectionWithArtifacts() {
+  console.log('=== Testing Hashtag Collection with Drive Artifacts ===');
+
+  try {
+    // Step 1: Create a test run
+    console.log('\n--- Step 1: Create test run ---');
+    const runId = generateRunId();
+    console.log('Run ID:', runId);
+
+    // Create run state
+    const state = createRunState(runId, 'Test hashtag collection with artifacts');
+    saveRunState(state);
+
+    // Create folder structure
+    console.log('Creating folder structure...');
+    const folders = createRunFolderStructure(runId);
+    console.log('Instagram folder ID:', folders.instagramFolderId);
+
+    // Create spreadsheet
+    console.log('Creating spreadsheet...');
+    const spreadsheet = createRunSpreadsheet(runId);
+    console.log('Spreadsheet URL:', spreadsheet.spreadsheetUrl);
+
+    // Save resources to state
+    setRunResources(runId, {
+      spreadsheetId: spreadsheet.spreadsheetId,
+      spreadsheetUrl: spreadsheet.spreadsheetUrl,
+      runFolderId: folders.runFolderId,
+      instagramFolderId: folders.instagramFolderId,
+      tiktokFolderId: folders.tiktokFolderId
+    });
+
+    // Step 2: Search hashtag and get media
+    console.log('\n--- Step 2: Search hashtag ---');
+    const hashtagId = searchHashtagId('skincare');
+    console.log('Hashtag ID:', hashtagId);
+
+    const topMedia = getHashtagTopMedia(hashtagId, 3);
+    console.log('Got', topMedia.media.length, 'media items');
+
+    if (topMedia.media.length === 0) {
+      return { success: false, message: 'No media found' };
+    }
+
+    // Step 3: Process each media with artifact creation
+    console.log('\n--- Step 3: Process media with artifacts ---');
+    const reloadedState = loadRunState(runId);
+    const postsToWrite = [];
+
+    for (const media of topMedia.media) {
+      console.log('Processing media:', media.id);
+      const result = processHashtagMedia(runId, reloadedState, media, 'skincare');
+      if (result.processed) {
+        postsToWrite.push(result.normalizedPost);
+        console.log('  - drive_url:', result.normalizedPost.drive_url);
+        console.log('  - memo:', result.normalizedPost.memo);
+      }
+    }
+
+    // Step 4: Write to spreadsheet
+    console.log('\n--- Step 4: Write to spreadsheet ---');
+    const rowsWritten = appendRowsBatch(spreadsheet.spreadsheetId, 'instagram', postsToWrite);
+    console.log('Rows written:', rowsWritten);
+
+    // Step 5: Verify columns
+    console.log('\n--- Step 5: Verify column data ---');
+    const sheet = SpreadsheetApp.openById(spreadsheet.spreadsheetId).getSheetByName('Instagram');
+    const headers = sheet.getRange(1, 1, 1, 23).getValues()[0];
+    const firstRow = sheet.getRange(2, 1, 1, 23).getValues()[0];
+
+    console.log('Column verification:');
+    headers.forEach((header, i) => {
+      const value = firstRow[i];
+      const status = value !== '' && value !== null ? '✓' : '✗ (empty)';
+      console.log(`  ${header}: ${status}`);
+    });
+
+    console.log('\n=== Test Complete ===');
+    console.log('Spreadsheet URL:', spreadsheet.spreadsheetUrl);
+    console.log('Instagram folder:', `https://drive.google.com/drive/folders/${folders.instagramFolderId}`);
+
+    return {
+      success: true,
+      spreadsheetUrl: spreadsheet.spreadsheetUrl,
+      instagramFolderUrl: `https://drive.google.com/drive/folders/${folders.instagramFolderId}`,
+      rowsWritten: rowsWritten
+    };
+
+  } catch (e) {
+    console.log('Error:', e.message);
+    console.log('Full error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Test hashtag API fields - check what fields are actually returned
+ * This helps understand API limitations
+ */
+function testHashtagApiFields() {
+  console.log('=== Testing Hashtag API Field Availability ===');
+
+  try {
+    // Search for hashtag
+    console.log('\n--- Searching hashtag: skincare ---');
+    const hashtagId = searchHashtagId('skincare');
+    console.log('Hashtag ID:', hashtagId);
+
+    // Get top media
+    console.log('\n--- Getting top media ---');
+    const topMedia = getHashtagTopMedia(hashtagId, 3);
+    console.log('Got', topMedia.media.length, 'media items');
+
+    if (topMedia.media.length === 0) {
+      return { success: false, message: 'No media found' };
+    }
+
+    // Check each media item for available fields
+    console.log('\n--- Checking available fields ---');
+    topMedia.media.forEach((media, index) => {
+      console.log(`\nMedia ${index + 1} (ID: ${media.id}):`);
+      console.log('  id:', media.id ? '✓' : '✗');
+      console.log('  caption:', media.caption ? '✓ (length: ' + media.caption.length + ')' : '✗');
+      console.log('  media_type:', media.media_type || '✗');
+      console.log('  media_url:', media.media_url ? '✓ URL available' : '✗ NOT available');
+      console.log('  thumbnail_url:', media.thumbnail_url ? '✓ URL available' : '✗ NOT available');
+      console.log('  permalink:', media.permalink ? '✓' : '✗');
+      console.log('  timestamp:', media.timestamp ? '✓' : '✗');
+      console.log('  like_count:', media.like_count !== undefined ? '✓ (' + media.like_count + ')' : '✗');
+      console.log('  comments_count:', media.comments_count !== undefined ? '✓ (' + media.comments_count + ')' : '✗');
+
+      if (media.media_url) {
+        console.log('  media_url preview:', media.media_url.substring(0, 100) + '...');
+      }
+    });
+
+    // Find a VIDEO type and try to download
+    const videoMedia = topMedia.media.find(m => m.media_type === 'VIDEO');
+    if (videoMedia && videoMedia.media_url) {
+      console.log('\n--- Found VIDEO with media_url, testing download ---');
+
+      const root = getRootFolder();
+      const testFolder = root.createFolder('test_hashtag_download_' + Date.now());
+
+      console.log('Downloading video...');
+      const file = saveVideoFile(testFolder, videoMedia.media_url, 'video.mp4');
+
+      if (file) {
+        console.log('SUCCESS! Video downloaded');
+        console.log('File URL:', file.getUrl());
+        console.log('File size:', file.getSize(), 'bytes');
+        return {
+          success: true,
+          message: 'Video download successful!',
+          fileUrl: file.getUrl(),
+          testFolderUrl: testFolder.getUrl()
+        };
+      } else {
+        console.log('FAILED: Video download failed');
+        testFolder.setTrashed(true);
+      }
+    } else {
+      console.log('\n--- No VIDEO with media_url found ---');
+    }
+
+    return {
+      success: true,
+      message: 'API fields checked - see log for details',
+      mediaCount: topMedia.media.length
+    };
+
+  } catch (e) {
+    console.log('Error:', e.message);
+    console.log('Full error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Test own account media collection with video download
+ * This tests if video.mp4 can be downloaded from own account media
+ */
+function testOwnAccountWithVideoDownload() {
+  console.log('=== Testing Own Account Media with Video Download ===');
+
+  try {
+    // Step 1: Get own account media
+    console.log('\n--- Step 1: Get own account media ---');
+    const mediaResult = getOwnAccountMedia(5);
+    console.log('Got', mediaResult.media.length, 'media items');
+
+    if (mediaResult.media.length === 0) {
+      console.log('No media found in own account');
+      return { success: false, message: 'No media in own account' };
+    }
+
+    // Step 2: Check what fields are available
+    console.log('\n--- Step 2: Check available fields ---');
+    const firstMedia = mediaResult.media[0];
+    console.log('First media fields:');
+    console.log('  id:', firstMedia.id);
+    console.log('  media_type:', firstMedia.media_type);
+    console.log('  media_url:', firstMedia.media_url ? 'YES' : 'NO');
+    console.log('  thumbnail_url:', firstMedia.thumbnail_url ? 'YES' : 'NO');
+    console.log('  media_product_type:', firstMedia.media_product_type || 'N/A');
+
+    // Find a VIDEO type media
+    const videoMedia = mediaResult.media.find(m => m.media_type === 'VIDEO');
+    if (videoMedia) {
+      console.log('\n--- Found VIDEO media ---');
+      console.log('  id:', videoMedia.id);
+      console.log('  media_url:', videoMedia.media_url ? videoMedia.media_url.substring(0, 80) + '...' : 'NO');
+    } else {
+      console.log('\nNo VIDEO type media found in first 5 items');
+    }
+
+    // Step 3: Create test folder and try to download
+    console.log('\n--- Step 3: Test video download ---');
+    const root = getRootFolder();
+    const testFolder = root.createFolder('test_video_download_' + Date.now());
+
+    // Try to download from the first video or any media with media_url
+    const mediaToDownload = videoMedia || mediaResult.media.find(m => m.media_url);
+
+    if (!mediaToDownload) {
+      console.log('No media with media_url found');
+      testFolder.setTrashed(true);
+      return { success: false, message: 'No media_url available' };
+    }
+
+    console.log('Attempting to download media:', mediaToDownload.id);
+    console.log('Media type:', mediaToDownload.media_type);
+    console.log('Media URL available:', !!mediaToDownload.media_url);
+
+    if (mediaToDownload.media_url) {
+      console.log('Downloading...');
+      const filename = mediaToDownload.media_type === 'VIDEO' ? 'video.mp4' : 'image.jpg';
+      const file = saveVideoFile(testFolder, mediaToDownload.media_url, filename);
+
+      if (file) {
+        console.log('SUCCESS! File downloaded:', file.getName());
+        console.log('File URL:', file.getUrl());
+        console.log('File size:', file.getSize(), 'bytes');
+
+        return {
+          success: true,
+          message: 'Video/image downloaded successfully',
+          fileUrl: file.getUrl(),
+          testFolderUrl: testFolder.getUrl()
+        };
+      } else {
+        console.log('FAILED: Could not download file');
+        testFolder.setTrashed(true);
+        return { success: false, message: 'Download failed' };
+      }
+    }
+
+    testFolder.setTrashed(true);
+    return { success: false, message: 'No downloadable media found' };
+
+  } catch (e) {
+    console.log('Error:', e.message);
+    console.log('Full error:', e);
+    return { success: false, error: e.message };
+  }
+}

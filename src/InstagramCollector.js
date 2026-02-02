@@ -10,7 +10,7 @@
  */
 
 /**
- * Instagram Graph API fields to request
+ * Instagram Graph API fields to request for own account media
  * Based on specification section 9.4
  */
 const INSTAGRAM_MEDIA_FIELDS = [
@@ -29,6 +29,26 @@ const INSTAGRAM_MEDIA_FIELDS = [
   'is_comment_enabled',
   'is_shared_to_feed',
   'children{id,media_type,media_url,thumbnail_url}'
+].join(',');
+
+/**
+ * Fields supported by hashtag media endpoints (top_media, recent_media)
+ *
+ * IMPORTANT: Instagram Graph API does NOT return media_url or thumbnail_url
+ * for hashtag search results. This is an API limitation, not a bug.
+ * See: https://developers.facebook.com/docs/instagram-api/reference/ig-hashtag/top-media
+ *
+ * Per spec section 4.3: "If downloading the video file is not feasible,
+ * store a Drive 'watch artifact' that contains a link to watch the video"
+ */
+const HASHTAG_MEDIA_FIELDS = [
+  'id',
+  'caption',
+  'media_type',
+  'permalink',
+  'timestamp',
+  'like_count',
+  'comments_count'
 ].join(',');
 
 /**
@@ -121,7 +141,7 @@ function getHashtagRecentMedia(hashtagId, limit = 50, cursor = null) {
 
   const params = {
     user_id: igUserId,
-    fields: INSTAGRAM_MEDIA_FIELDS,
+    fields: HASHTAG_MEDIA_FIELDS,
     limit: Math.min(limit, 50) // API max is 50
   };
 
@@ -152,7 +172,7 @@ function getHashtagTopMedia(hashtagId, limit = 50) {
 
   const response = callInstagramAPI(`${hashtagId}/top_media`, {
     user_id: igUserId,
-    fields: INSTAGRAM_MEDIA_FIELDS,
+    fields: HASHTAG_MEDIA_FIELDS,
     limit: Math.min(limit, 50)
   });
 
@@ -273,6 +293,8 @@ function collectInstagramMedia(runId, plan, onProgress) {
 
 /**
  * Collect Instagram media via hashtag search
+ * Creates Drive artifacts and collects all available fields
+ * Note: Hashtag search API has limited fields - some columns will be empty (see memo)
  * @param {string} runId - The run ID
  * @param {Object} plan - The collection plan
  * @param {number} targetCount - Target number of media
@@ -287,6 +309,7 @@ function collectInstagramViaHashtags(runId, plan, targetCount, onProgress) {
   let collected = state.instagramProgress.collected || 0;
   let skipped = 0;
   const postsToWrite = [];
+  const processedIds = new Set();
 
   // Get hashtags to search
   const hashtagsToSearch = plan.queryStrategy?.instagram?.hashtagsToSearch ||
@@ -298,6 +321,8 @@ function collectInstagramViaHashtags(runId, plan, targetCount, onProgress) {
     console.log('No hashtags to search, falling back to own account');
     return collectInstagramViaOwnAccount(runId, plan, targetCount, onProgress);
   }
+
+  console.log(`Starting hashtag collection. Target: ${targetCount}, Hashtags: ${hashtagsToSearch.join(', ')}`);
 
   // Search each hashtag
   for (const hashtag of hashtagsToSearch) {
@@ -313,23 +338,35 @@ function collectInstagramViaHashtags(runId, plan, targetCount, onProgress) {
       continue;
     }
 
+    console.log(`Found hashtag ID: ${hashtagId}`);
+
     // Get top media first (usually more relevant)
     try {
       const topMedia = getHashtagTopMedia(hashtagId, Math.min(25, targetCount - collected));
+      console.log(`Got ${topMedia.media.length} top media items`);
 
       for (const media of topMedia.media) {
         if (collected >= targetCount) break;
 
-        const result = processInstagramMedia(runId, state, media);
+        const mediaId = String(media.id);
+
+        // Skip duplicates
+        if (processedIds.has(mediaId) || isPostProcessed(runId, 'instagram', mediaId)) {
+          skipped++;
+          continue;
+        }
+
+        // Process media with Drive artifact creation
+        const result = processHashtagMedia(runId, state, media, hashtag);
         if (result.processed) {
           postsToWrite.push(result.normalizedPost);
+          processedIds.add(mediaId);
+          addProcessedPostId(runId, 'instagram', mediaId);
           collected++;
-        } else if (result.skipped) {
-          skipped++;
         }
       }
     } catch (e) {
-      console.error(`Error getting top media for hashtag ${hashtag}:`, e);
+      console.error(`Error getting top media for hashtag ${hashtag}:`, e.message);
     }
 
     // Get recent media if we need more
@@ -338,7 +375,7 @@ function collectInstagramViaHashtags(runId, plan, targetCount, onProgress) {
         let cursor = null;
         let attempts = 0;
 
-        while (collected < targetCount && attempts < 5) {
+        while (collected < targetCount && attempts < 3) {
           attempts++;
 
           const recentMedia = getHashtagRecentMedia(
@@ -351,15 +388,26 @@ function collectInstagramViaHashtags(runId, plan, targetCount, onProgress) {
             break;
           }
 
+          console.log(`Got ${recentMedia.media.length} recent media items (attempt ${attempts})`);
+
           for (const media of recentMedia.media) {
             if (collected >= targetCount) break;
 
-            const result = processInstagramMedia(runId, state, media);
+            const mediaId = String(media.id);
+
+            // Skip duplicates
+            if (processedIds.has(mediaId) || isPostProcessed(runId, 'instagram', mediaId)) {
+              skipped++;
+              continue;
+            }
+
+            // Process media with Drive artifact creation
+            const result = processHashtagMedia(runId, state, media, hashtag);
             if (result.processed) {
               postsToWrite.push(result.normalizedPost);
+              processedIds.add(mediaId);
+              addProcessedPostId(runId, 'instagram', mediaId);
               collected++;
-            } else if (result.skipped) {
-              skipped++;
             }
           }
 
@@ -370,34 +418,87 @@ function collectInstagramViaHashtags(runId, plan, targetCount, onProgress) {
           }
         }
       } catch (e) {
-        console.error(`Error getting recent media for hashtag ${hashtag}:`, e);
-      }
-    }
-
-    // Write batch to spreadsheet
-    if (postsToWrite.length >= batchSize) {
-      appendRowsBatch(state.spreadsheetId, 'instagram', postsToWrite);
-      postsToWrite.length = 0;
-
-      updateInstagramProgress(runId, { collected });
-
-      if (onProgress) {
-        onProgress({ platform: 'instagram', collected, target: targetCount });
+        console.error(`Error getting recent media for hashtag ${hashtag}:`, e.message);
       }
     }
   }
 
-  // Write remaining posts
+  // Write all collected posts to spreadsheet
   if (postsToWrite.length > 0) {
+    console.log(`Writing ${postsToWrite.length} posts to spreadsheet`);
     appendRowsBatch(state.spreadsheetId, 'instagram', postsToWrite);
     updateInstagramProgress(runId, { collected });
 
     if (onProgress) {
       onProgress({ platform: 'instagram', collected, target: targetCount });
     }
+  } else {
+    console.log('No posts collected from hashtag search');
   }
 
   return { collected, skipped };
+}
+
+/**
+ * Process a single media item from hashtag search
+ * Creates Drive artifacts and normalizes data
+ *
+ * NOTE: Instagram Graph API does NOT provide media_url for hashtag search results.
+ * This is an API limitation. Per spec section 4.3, we store watch.html as fallback.
+ *
+ * @param {string} runId - The run ID
+ * @param {Object} state - The run state
+ * @param {Object} media - The media object from API
+ * @param {string} hashtag - The hashtag used for search
+ * @returns {Object} Processing result
+ */
+function processHashtagMedia(runId, state, media, hashtag) {
+  const mediaId = String(media.id);
+  const memoNotes = [];
+  memoNotes.push(`hashtag: ${hashtag}`);
+
+  // Extract shortcode from permalink
+  let shortcode = '';
+  if (media.permalink) {
+    const match = media.permalink.match(/\/(?:p|reel)\/([^\/]+)/);
+    if (match) {
+      shortcode = match[1];
+    }
+  }
+
+  // Create Drive artifact
+  let driveUrl = '';
+  try {
+    const postFolder = createPostFolder(state.instagramFolderId, mediaId);
+
+    // Save raw JSON (contains all available API data)
+    saveRawJson(postFolder, media);
+
+    // Instagram Graph API does NOT return media_url for hashtag searches
+    // This is a documented API limitation, not a bug
+    // Per spec section 4.3: store watch.html as fallback
+    const watchFile = createWatchArtifact(postFolder, {
+      watchUrl: media.permalink || `https://www.instagram.com/p/${shortcode}/`,
+      username: '', // Not available from hashtag API
+      platform: 'Instagram'
+    });
+    driveUrl = getFileUrl(watchFile);
+
+    // Note the API limitation in memo
+    memoNotes.push('video not downloaded (Instagram API does not provide media_url for hashtag search); watch.html stored');
+
+  } catch (e) {
+    console.error(`Error creating Drive artifact for ${mediaId}:`, e.message);
+    memoNotes.push('Drive artifact creation failed: ' + e.message);
+  }
+
+  // Normalize post data
+  const normalizedPost = normalizeInstagramPost(media, driveUrl, memoNotes.join('; '));
+
+  return {
+    processed: true,
+    normalizedPost: normalizedPost
+  };
 }
 
 /**

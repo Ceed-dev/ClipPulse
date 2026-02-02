@@ -108,6 +108,67 @@ function invalidateTikTokResearchToken() {
 // ============================================================
 
 /**
+ * Get the OAuth callback URL for this script
+ * This URL must be registered in Facebook Developer Console
+ *
+ * IMPORTANT: The OAuth2 library ALWAYS uses this format:
+ * https://script.google.com/macros/d/{SCRIPT_ID}/usercallback
+ *
+ * This is true even for Google Workspace accounts!
+ * The /a/macros/{DOMAIN}/ format is for Web App URLs, NOT for OAuth callbacks.
+ *
+ * @returns {string} The callback URL that OAuth2 library will use
+ */
+function getOAuthCallbackUrl() {
+  // The OAuth2 library ALWAYS uses this format, regardless of account type:
+  // https://script.google.com/macros/d/{SCRIPT_ID}/usercallback
+  const scriptId = ScriptApp.getScriptId();
+  return `https://script.google.com/macros/d/${scriptId}/usercallback`;
+}
+
+/**
+ * Debug function to display the exact callback URL that must be registered
+ * Run this from the script editor to get the correct URL for Facebook Developer Console
+ *
+ * IMPORTANT: After running this function, copy the URL and register it in:
+ * Facebook Developer Console > Your App > Use Cases > Facebook Login > Settings > Valid OAuth Redirect URIs
+ */
+function showOAuthCallbackUrl() {
+  const scriptId = ScriptApp.getScriptId();
+  const callbackUrl = getOAuthCallbackUrl();
+
+  console.log('');
+  console.log('╔══════════════════════════════════════════════════════════════════════════════╗');
+  console.log('║                     OAUTH CALLBACK URL FOR FACEBOOK                          ║');
+  console.log('╚══════════════════════════════════════════════════════════════════════════════╝');
+  console.log('');
+  console.log('📋 Register this EXACT URL in Facebook Developer Console:');
+  console.log('');
+  console.log('   ' + callbackUrl);
+  console.log('');
+  console.log('─────────────────────────────────────────────────────────────────────────────────');
+  console.log('📍 Where to register:');
+  console.log('   1. Go to https://developers.facebook.com/apps/');
+  console.log('   2. Select your app');
+  console.log('   3. Go to: Use Cases > Facebook Login > Settings');
+  console.log('   4. Find: "Valid OAuth Redirect URIs"');
+  console.log('   5. Add the URL above (remove any old URLs that don\'t match!)');
+  console.log('   6. Click "Save Changes"');
+  console.log('');
+  console.log('─────────────────────────────────────────────────────────────────────────────────');
+  console.log('ℹ️  Script ID: ' + scriptId);
+  console.log('');
+  console.log('⚠️  IMPORTANT: The OAuth2 library ALWAYS uses this format:');
+  console.log('   https://script.google.com/macros/d/{SCRIPT_ID}/usercallback');
+  console.log('');
+  console.log('   This is true even for Google Workspace accounts!');
+  console.log('   Do NOT use the /a/macros/{DOMAIN}/ format - that is for Web App URLs only.');
+  console.log('');
+
+  return callbackUrl;
+}
+
+/**
  * Create the OAuth2 service for Meta/Instagram
  * @returns {OAuth2.Service} The OAuth2 service
  */
@@ -118,6 +179,11 @@ function getMetaOAuthService() {
   if (!appId || !appSecret) {
     throw new Error('Meta App credentials not configured');
   }
+
+  // NOTE: Do NOT manually set redirect_uri here!
+  // The OAuth2 library automatically constructs the callback URL
+  // based on the script ID and deployment type.
+  // Setting it manually can cause URL mismatch errors.
 
   return OAuth2.createService('meta')
     .setAuthorizationBaseUrl('https://www.facebook.com/v18.0/dialog/oauth')
@@ -134,6 +200,7 @@ function getMetaOAuthService() {
       'business_management'
     ].join(','))
     .setParam('response_type', 'code');
+    // redirect_uri is automatically set by OAuth2 library - do not override!
 }
 
 /**
@@ -447,6 +514,20 @@ function getAuthStatus() {
  */
 function logAuthUrls() {
   console.log('=== OAuth Authorization URLs ===\n');
+
+  // First, show the callback URL that must be registered
+  console.log('【重要】Facebook Developer Console に登録すべき Callback URL:');
+  try {
+    const callbackUrl = getOAuthCallbackUrl();
+    console.log(callbackUrl);
+    console.log('');
+    console.log('※ このURLが Facebook Developer > 製品 > Facebookログイン > 設定 > 有効なOAuthリダイレクトURI に登録されていることを確認してください。');
+    console.log('');
+  } catch (e) {
+    console.log('Callback URL取得エラー:', e.message);
+    console.log('※ Web Appとしてデプロイされていない可能性があります。');
+    console.log('');
+  }
 
   if (isInstagramConfigured() || (getConfig(CONFIG_KEYS.META_APP_ID) && getConfig(CONFIG_KEYS.META_APP_SECRET))) {
     try {
