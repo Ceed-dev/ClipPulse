@@ -229,11 +229,17 @@ ClipPulse/
 - `watch.html` (fallback "watch artifact" containing link to view the post)
 - `thumbnail.jpg` (optional, if available and feasible)
 
-### 8.3 What "Drive URL" means in the sheet
+### 8.3 What "drive_url" means in the sheet
 
-For each row, `drive_url` must point to the primary artifact:
-- If `video.mp4` exists → `drive_url` = URL to `video.mp4`
-- Else → `drive_url` = URL to `watch.html`
+The `drive_url` column contains a reference URL for each post, with platform-specific behavior:
+
+**Instagram:**
+- If `video.mp4` exists in Drive → `drive_url` = Google Drive URL to `video.mp4`
+- Else → `drive_url` = Google Drive URL to `watch.html`
+
+**X (Twitter):**
+- `drive_url` = Direct URL to the tweet on X (e.g., `https://x.com/username/status/123456`)
+- Note: Raw JSON and watch.html are still archived in Drive, but the spreadsheet shows the direct tweet URL for easy access
 
 ## 9. Spreadsheet output specification
 
@@ -302,14 +308,16 @@ These columns appear first in both tabs, in this order:
 | 13 | is_comment_enabled | boolean | Whether comments are enabled on the post |
 | 14 | is_shared_to_feed | boolean | Whether Reel is shared to feed |
 | 15 | children | string | JSON string with carousel children info |
-| 16 | edges_comments | string | JSON string with summary or first N comments |
-| 17 | edges_insights | string | JSON string with post metrics and insights |
-| 18 | edges_collaborators | string | JSON string list of collaborators |
-| 19 | boost_ads_list | string | JSON string with boost/promotion ads info |
-| 20 | boost_eligibility_info | string | JSON string with eligibility for boosting |
-| 21 | copyright_check_information_status | string | Copyright check result status |
-| 22 | drive_url | string | Google Drive URL to stored artifact |
+| 16 | edges_comments | string | ⚠️ **NOT AVAILABLE** - Comment details (requires separate API) |
+| 17 | edges_insights | string | ⚠️ **NOT AVAILABLE** - Own posts only (impressions, reach, etc.) |
+| 18 | edges_collaborators | string | ⚠️ **NOT AVAILABLE** - Collaborator list not publicly accessible |
+| 19 | boost_ads_list | string | ⚠️ **NOT AVAILABLE** - Own posts only (advertising data) |
+| 20 | boost_eligibility_info | string | ⚠️ **NOT AVAILABLE** - Own posts only (boost eligibility) |
+| 21 | copyright_check_information_status | string | ⚠️ **NOT AVAILABLE** - Own posts only (copyright status) |
+| 22 | drive_url | string | Google Drive URL to video.mp4 or watch.html |
 | 23 | memo | string | Notes on missing fields or errors |
+
+> **Note:** Fields marked "⚠️ NOT AVAILABLE" cannot be retrieved for other users' posts due to Instagram API restrictions. These fields will always be empty for hashtag search results. See section 10.3 for details.
 
 ### 9.5 X (Twitter) tab columns (full order)
 
@@ -341,8 +349,10 @@ These columns appear first in both tabs, in this order:
 | 24 | urls | string | JSON string array of URLs included in the tweet |
 | 25 | user_mentions | string | JSON string array of users mentioned in the tweet |
 | 26 | media | string | JSON string array of media attachments (images, videos) |
-| 27 | drive_url | string | Google Drive URL to stored artifact |
+| 27 | drive_url | string | Direct URL to the tweet on X (e.g., `https://x.com/user/status/123`) |
 | 28 | memo | string | Notes on missing fields or errors |
+
+> **Note:** For X (Twitter), `drive_url` contains the direct tweet URL for easy access. Raw JSON and watch.html are still archived in Google Drive for backup purposes.
 
 ### 9.6 Data encoding rules
 
@@ -438,7 +448,50 @@ The Instagram Graph API hashtag search endpoints (`/{hashtag-id}/top_media` and 
 | `comments_count` | `children` (carousel details) |
 | | `insights`, `collaborators`, etc. |
 
-The system attempts to retrieve additional details via `getMediaDetails()` but this typically fails for non-owned media due to Instagram API permission restrictions. When fields cannot be retrieved, they are left blank and the memo column indicates the reason.
+The system attempts to retrieve additional details via `getMediaDetails()` but this typically fails for non-owned media due to Instagram API permission restrictions.
+
+**RapidAPI Data Enrichment (Optional)**
+
+When `INSTAGRAM_RAPIDAPI_KEY` is configured, the system uses the RapidAPI "Instagram API – Fast & Reliable Data Scraper" to enrich hashtag search results with additional fields:
+
+| Field | Official API (Hashtag) | With RapidAPI | Status |
+|-------|------------------------|---------------|--------|
+| platform_post_id | ✅ | ✅ | **Available** |
+| create_username | ❌ | ✅ | **Available with RapidAPI** |
+| posted_at | ✅ | ✅ | **Available** |
+| caption_or_description | ✅ | ✅ | **Available** |
+| post_url | ✅ | ✅ | **Available** |
+| like_count | ✅ | ✅ | **Available** |
+| comments_count | ✅ | ✅ | **Available** |
+| media_type | ✅ | ✅ | **Available** |
+| media_url | ❌ | ✅ | **Available with RapidAPI** |
+| thumbnail_url | ❌ | ✅ | **Available with RapidAPI** |
+| shortcode | ❌ (extractable) | ✅ | **Available** |
+| media_product_type | ❌ | ✅ | **Available with RapidAPI** |
+| is_comment_enabled | ❌ | ✅ | **Available with RapidAPI** |
+| is_shared_to_feed | ❌ | ✅ | **Available with RapidAPI** |
+| children | ❌ | ✅ | **Available with RapidAPI** |
+| edges_comments | ❌ | ❌ | **NOT Available** (requires separate API) |
+| edges_insights | ❌ | ❌ | **NOT Available** (own posts only) |
+| edges_collaborators | ❌ | ❌ | **NOT Available** (limited access) |
+| boost_ads_list | ❌ | ❌ | **NOT Available** (own posts only) |
+| boost_eligibility_info | ❌ | ❌ | **NOT Available** (own posts only) |
+| copyright_check_information_status | ❌ | ❌ | **NOT Available** (own posts only) |
+| drive_url | (generated) | (generated) | **Available** |
+| memo | (generated) | (generated) | **Available** |
+
+**Fields That Cannot Be Retrieved (Any Method):**
+
+The following 6 fields are **impossible to retrieve** for other users' posts, regardless of API or scraping method used:
+
+1. **edges_insights** - Impressions, reach, engagement metrics are private data only available for your own posts via Instagram Business API
+2. **edges_collaborators** - Full collaborator list is not publicly accessible
+3. **boost_ads_list** - Advertising/promotion data is only available to the post owner
+4. **boost_eligibility_info** - Boost eligibility is internal Instagram data for post owners only
+5. **copyright_check_information_status** - Copyright status is internal Instagram data for post owners only
+6. **edges_comments** - Detailed comment data requires separate API calls; not included in current implementation but technically possible with additional scraping APIs (e.g., [Apify Instagram Comment Scraper](https://apify.com/apify/instagram-comment-scraper))
+
+These fields will be left blank in the spreadsheet, with an explanation in the memo column.
 
 **If insufficient results:**
 - try multiple hashtags

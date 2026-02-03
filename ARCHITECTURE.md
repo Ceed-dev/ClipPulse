@@ -252,8 +252,8 @@ ClipPulse_<runId>
 - TikTok collected last (currently disabled)
 
 ### Video/Post Artifact Strategy
-- Instagram: Prefer actual video download when feasible, fallback to `watch.html`
-- X: Always create `watch.html` with tweet permalink
+- Instagram: Prefer actual video download when feasible, fallback to `watch.html`. `drive_url` points to Drive file.
+- X: Create `watch.html` for archival, but `drive_url` contains direct tweet URL for easy access.
 
 ### Batch Processing
 - Process 10-20 posts per batch

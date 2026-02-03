@@ -310,29 +310,31 @@ function processXTweet(runId, state, tweet) {
   const tweetId = String(tweet.id);
   const memoNotes = [];
 
-  // Create Drive artifact
-  let driveUrl = '';
+  // Get tweet URL - this will be used as drive_url for X
+  // (X posts use direct tweet URL instead of Drive URL)
+  const tweetUrl = tweet.url || `https://x.com/i/status/${tweetId}`;
+
+  // Create Drive artifact for archival purposes
   try {
     const postFolder = createPostFolder(state.xFolderId, tweetId);
 
     // Save raw JSON
     saveRawJson(postFolder, tweet);
 
-    // Create watch artifact with tweet URL
-    const watchFile = createWatchArtifact(postFolder, {
-      watchUrl: tweet.url || `https://x.com/i/status/${tweetId}`,
+    // Create watch artifact with tweet URL (for archival)
+    createWatchArtifact(postFolder, {
+      watchUrl: tweetUrl,
       username: tweet.author?.userName || '',
       platform: 'X'
     });
-    driveUrl = getFileUrl(watchFile);
 
   } catch (e) {
     console.error(`Error creating Drive artifact for tweet ${tweetId}:`, e.message);
     memoNotes.push('Drive artifact creation failed: ' + e.message);
   }
 
-  // Normalize post data
-  const normalizedPost = normalizeXPost(tweet, driveUrl, memoNotes.join('; '));
+  // Normalize post data - use tweet URL directly for drive_url
+  const normalizedPost = normalizeXPost(tweet, tweetUrl, memoNotes.join('; '));
 
   return {
     processed: true,

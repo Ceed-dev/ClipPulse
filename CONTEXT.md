@@ -632,6 +632,68 @@ Tested various endpoint patterns via curl:
 
 **Status:** RapidAPI integration working. Ready for end-to-end testing with actual Instagram data collection.
 
+### 2026-02-03 - Documentation Update and X drive_url Fix (Evening Session)
+
+**Participants:** Human + Claude Opus 4.5
+
+**Context:**
+Continued work on documentation updates and fixing the `drive_url` column behavior for X (Twitter).
+
+**Completed Tasks:**
+
+1. **Research on Unavailable Instagram Fields**
+   - Confirmed that the following 6 fields are **impossible to retrieve** for other users' posts:
+     - `edges_insights` - Only available for own posts (impressions, reach, etc.)
+     - `edges_collaborators` - Not publicly accessible
+     - `boost_ads_list` - Only available to post owner
+     - `boost_eligibility_info` - Only available to post owner
+     - `copyright_check_information_status` - Only available to post owner
+     - `edges_comments` - Technically possible with additional APIs but not implemented
+   - Sources: [Apify Instagram Scrapers](https://apify.com/apify/instagram-scraper), [Data365 Instagram API](https://data365.co/instagram), official Instagram Graph API documentation
+
+2. **README.md Updates**
+   - Added comprehensive data availability table in section 10.3
+   - Marked unavailable fields with ⚠️ in section 9.4 (Instagram columns)
+   - Updated section 8.3 to explain platform-specific `drive_url` behavior
+   - Updated section 9.5 (X columns) with note about `drive_url` containing direct tweet URL
+
+3. **XCollector.js Fix**
+   - Changed `drive_url` to contain the direct tweet URL instead of Drive watch.html URL
+   - Raw JSON and watch.html are still archived in Drive for backup
+   - This makes it easier for users to click and view the original tweet
+
+4. **ARCHITECTURE.md Updates**
+   - Updated artifact strategy section to reflect platform-specific `drive_url` behavior
+
+5. **Web App Deployment**
+   - Successfully redeployed to Version 17
+   - Confirmed working in **incognito/private browser window**
+
+**Current Issue (Not a Code Problem):**
+- Normal browser shows "Sorry, unable to open the file at this time" error
+- This is caused by **multiple Google accounts** logged in simultaneously
+- The browser redirects to wrong account (adds `/u/1/` to URL)
+- **Workaround:** Use incognito window or clear browser cookies and re-login with the correct account first
+
+**Pending Tasks (To Do Next Session):**
+
+1. **End-to-End Testing**
+   - Run data collection with ~25 Instagram posts and ~25 X tweets
+   - Verify Instagram `drive_url` contains Google Drive URLs (video.mp4 or watch.html)
+   - Verify X `drive_url` contains direct tweet URLs (https://x.com/...)
+   - Check all available fields are populated correctly
+   - Check unavailable fields are blank with appropriate memo
+
+2. **Final Verification**
+   - Confirm RapidAPI enrichment is working for Instagram hashtag search
+   - Verify memo field correctly indicates data source
+
+**Files Modified This Session:**
+- `README.md` - Data availability documentation
+- `ARCHITECTURE.md` - Updated artifact strategy
+- `src/XCollector.js` - Changed drive_url to direct tweet URL
+- `CONTEXT.md` - This session log
+
 ## Guidelines for Future Sessions
 
 1. **Before Making Changes:** Always read this CONTEXT.md file first
