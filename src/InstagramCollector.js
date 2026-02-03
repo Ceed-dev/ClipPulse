@@ -440,8 +440,63 @@ function collectInstagramViaHashtags(runId, plan, targetCount, onProgress) {
 }
 
 /**
+ * Try to get additional media details using the media ID
+ * Note: This may fail for non-owned media due to API permissions
+ *
+ * @param {string} mediaId - The media ID
+ * @returns {Object|null} Additional media details or null if failed
+ */
+function tryGetMediaDetails(mediaId) {
+  try {
+    // Try to get additional details using the media ID
+    // This typically only works for media owned by the authenticated user
+    // or media that the user has permission to access
+    const details = getMediaDetails(mediaId);
+
+    // Check if we got useful additional data
+    if (details && (details.username || details.media_url)) {
+      console.log(`[DEBUG] Successfully retrieved additional details for media ${mediaId}`);
+      return details;
+    }
+    return null;
+  } catch (e) {
+    // Expected to fail for non-owned media due to permission restrictions
+    console.log(`[DEBUG] Could not get additional details for media ${mediaId}: ${e.message}`);
+    return null;
+  }
+}
+
+/**
+ * Extract username from Instagram permalink URL
+ * Supports formats like:
+ * - https://www.instagram.com/p/ABC123/
+ * - https://www.instagram.com/reel/ABC123/
+ * - https://www.instagram.com/username/p/ABC123/
+ *
+ * @param {string} permalink - The Instagram permalink
+ * @returns {string} Extracted username or empty string
+ */
+function extractUsernameFromPermalink(permalink) {
+  if (!permalink) return '';
+
+  // Try to extract username from URL pattern like /username/p/shortcode/
+  // This pattern appears in some Instagram URLs
+  const usernameMatch = permalink.match(/instagram\.com\/([^\/]+)\/(?:p|reel)\//);
+  if (usernameMatch && usernameMatch[1] !== 'www') {
+    return usernameMatch[1];
+  }
+
+  return '';
+}
+
+/**
  * Process a single media item from hashtag search
  * Creates Drive artifacts and normalizes data
+ *
+ * Data enrichment strategy:
+ * 1. If RapidAPI is configured, use it to get additional fields (media_url, username, etc.)
+ * 2. If RapidAPI not available, try Instagram Graph API getMediaDetails (usually fails for non-owned media)
+ * 3. If both fail, use basic hashtag search data only
  *
  * NOTE: Instagram Graph API does NOT provide media_url for hashtag search results.
  * This is an API limitation. Per spec section 4.3, we store watch.html as fallback.
@@ -457,35 +512,123 @@ function processHashtagMedia(runId, state, media, hashtag) {
   const memoNotes = [];
   memoNotes.push(`hashtag: ${hashtag}`);
 
-  // Extract shortcode from permalink
-  let shortcode = '';
-  if (media.permalink) {
+  // Start with hashtag search data
+  let enrichedMedia = { ...media };
+  let additionalFieldsRetrieved = false;
+  let dataSource = 'official API (limited fields)';
+
+  // Extract shortcode from permalink first
+  let shortcode = media.shortcode || '';
+  if (!shortcode && media.permalink) {
     const match = media.permalink.match(/\/(?:p|reel)\/([^\/]+)/);
-    if (match) {
-      shortcode = match[1];
+    if (match) shortcode = match[1];
+  }
+  enrichedMedia.shortcode = shortcode;
+
+  // Strategy 1: Try RapidAPI if configured (preferred for getting all fields)
+  if (isInstagramRapidAPIConfigured() && shortcode) {
+    try {
+      console.log(`[DEBUG] Attempting to enrich post ${shortcode} via RapidAPI`);
+      const rapidAPIData = getPostDetailsByShortcode(shortcode);
+
+      if (rapidAPIData && (rapidAPIData.username || rapidAPIData.media_url)) {
+        enrichedMedia = {
+          ...media,
+          username: rapidAPIData.username || media.username,
+          media_url: rapidAPIData.media_url || media.media_url,
+          thumbnail_url: rapidAPIData.thumbnail_url || media.thumbnail_url,
+          shortcode: shortcode,
+          media_product_type: rapidAPIData.media_product_type || media.media_product_type,
+          is_comment_enabled: rapidAPIData.is_comment_enabled ?? media.is_comment_enabled,
+          is_shared_to_feed: rapidAPIData.is_shared_to_feed ?? media.is_shared_to_feed,
+          children: rapidAPIData.children || media.children,
+          // Preserve official API data for fields it provides
+          id: media.id,
+          caption: media.caption,
+          media_type: media.media_type,
+          permalink: media.permalink,
+          timestamp: media.timestamp,
+          like_count: media.like_count ?? rapidAPIData.like_count,
+          comments_count: media.comments_count ?? rapidAPIData.comments_count
+        };
+        additionalFieldsRetrieved = true;
+        dataSource = 'RapidAPI';
+        memoNotes.push('enriched via RapidAPI');
+      }
+    } catch (e) {
+      console.log(`[DEBUG] RapidAPI enrichment failed for ${shortcode}: ${e.message}`);
     }
+  }
+
+  // Strategy 2: If RapidAPI didn't work, try official API getMediaDetails
+  if (!additionalFieldsRetrieved) {
+    const additionalDetails = tryGetMediaDetails(mediaId);
+    if (additionalDetails) {
+      enrichedMedia = {
+        ...enrichedMedia,
+        username: additionalDetails.username || enrichedMedia.username,
+        media_url: additionalDetails.media_url || enrichedMedia.media_url,
+        thumbnail_url: additionalDetails.thumbnail_url || enrichedMedia.thumbnail_url,
+        shortcode: additionalDetails.shortcode || shortcode,
+        media_product_type: additionalDetails.media_product_type || enrichedMedia.media_product_type,
+        is_comment_enabled: additionalDetails.is_comment_enabled,
+        is_shared_to_feed: additionalDetails.is_shared_to_feed,
+        children: additionalDetails.children || enrichedMedia.children
+      };
+      additionalFieldsRetrieved = true;
+      dataSource = 'official API (media details)';
+      memoNotes.push('additional fields via Graph API media details');
+    }
+  }
+
+  // Try to extract username from permalink if not available
+  if (!enrichedMedia.username) {
+    enrichedMedia.username = extractUsernameFromPermalink(enrichedMedia.permalink);
   }
 
   // Create Drive artifact
   let driveUrl = '';
+  let videoDownloaded = false;
   try {
     const postFolder = createPostFolder(state.instagramFolderId, mediaId);
 
     // Save raw JSON (contains all available API data)
-    saveRawJson(postFolder, media);
+    saveRawJson(postFolder, enrichedMedia);
 
-    // Instagram Graph API does NOT return media_url for hashtag searches
-    // This is a documented API limitation, not a bug
-    // Per spec section 4.3: store watch.html as fallback
-    const watchFile = createWatchArtifact(postFolder, {
-      watchUrl: media.permalink || `https://www.instagram.com/p/${shortcode}/`,
-      username: '', // Not available from hashtag API
-      platform: 'Instagram'
-    });
-    driveUrl = getFileUrl(watchFile);
+    // Try to download video if media_url is available and it's a video
+    if (enrichedMedia.media_url && enrichedMedia.media_type === 'VIDEO') {
+      const videoFile = saveVideoFile(postFolder, enrichedMedia.media_url);
+      if (videoFile) {
+        driveUrl = getFileUrl(videoFile);
+        videoDownloaded = true;
+        memoNotes.push('video downloaded successfully');
+      }
+    }
 
-    // Note the API limitation in memo
-    memoNotes.push('video not downloaded (Instagram API does not provide media_url for hashtag search); watch.html stored');
+    // Create watch.html if video wasn't downloaded
+    if (!videoDownloaded) {
+      const watchFile = createWatchArtifact(postFolder, {
+        watchUrl: enrichedMedia.permalink || `https://www.instagram.com/p/${shortcode}/`,
+        username: enrichedMedia.username || '',
+        platform: 'Instagram'
+      });
+      driveUrl = getFileUrl(watchFile);
+
+      if (!additionalFieldsRetrieved) {
+        // Note the API limitation - this is the expected case for hashtag search
+        memoNotes.push('Instagram API does not provide media_url for hashtag search; watch.html stored');
+      } else {
+        memoNotes.push('watch.html stored');
+      }
+    }
+
+    // Try to save thumbnail if available
+    if (enrichedMedia.thumbnail_url) {
+      const thumbFile = saveThumbnail(postFolder, enrichedMedia.thumbnail_url);
+      if (thumbFile) {
+        memoNotes.push('thumbnail saved');
+      }
+    }
 
   } catch (e) {
     console.error(`Error creating Drive artifact for ${mediaId}:`, e.message);
@@ -493,7 +636,7 @@ function processHashtagMedia(runId, state, media, hashtag) {
   }
 
   // Normalize post data
-  const normalizedPost = normalizeInstagramPost(media, driveUrl, memoNotes.join('; '));
+  const normalizedPost = normalizeInstagramPost(enrichedMedia, driveUrl, memoNotes.join('; '));
 
   return {
     processed: true,

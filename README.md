@@ -423,6 +423,23 @@ Use one of these retrieval strategies (chosen by AI):
 - **Hashtag-based retrieval** (preferred for trend discovery)
 - **Owned-account media retrieval** (fallback)
 
+**Important: Hashtag Search API Limitations**
+
+The Instagram Graph API hashtag search endpoints (`/{hashtag-id}/top_media` and `/{hashtag-id}/recent_media`) return **limited fields only**:
+
+| Available via Hashtag Search | NOT Available via Hashtag Search |
+|------------------------------|----------------------------------|
+| `id` | `media_url` |
+| `caption` | `thumbnail_url` |
+| `media_type` | `username` |
+| `permalink` | `media_product_type` |
+| `timestamp` | `is_comment_enabled` |
+| `like_count` | `is_shared_to_feed` |
+| `comments_count` | `children` (carousel details) |
+| | `insights`, `collaborators`, etc. |
+
+The system attempts to retrieve additional details via `getMediaDetails()` but this typically fails for non-owned media due to Instagram API permission restrictions. When fields cannot be retrieved, they are left blank and the memo column indicates the reason.
+
 **If insufficient results:**
 - try multiple hashtags
 - broaden to recent media if top media is limited (if available)
@@ -491,6 +508,10 @@ The memo column is mandatory and must be populated only when needed.
 
 **X (Twitter) API:**
 - `X_API_KEY` (TwitterAPI.io API key)
+
+**Instagram RapidAPI (optional, for data enrichment):**
+- `INSTAGRAM_RAPIDAPI_KEY` (RapidAPI API key - enables fetching additional fields for hashtag search)
+- `INSTAGRAM_RAPIDAPI_HOST` (optional, defaults to `instagram-scraper-api2.p.rapidapi.com`)
 
 **TikTok Research API (disabled):**
 - `TIKTOK_RESEARCH_CLIENT_KEY`

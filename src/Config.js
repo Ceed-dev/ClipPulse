@@ -18,6 +18,11 @@ const CONFIG_KEYS = {
   // X (Twitter) API - TwitterAPI.io
   X_API_KEY: 'X_API_KEY',
 
+  // Instagram RapidAPI (third-party API for additional fields)
+  // Used when official Graph API doesn't provide needed data (hashtag search)
+  INSTAGRAM_RAPIDAPI_KEY: 'INSTAGRAM_RAPIDAPI_KEY',
+  INSTAGRAM_RAPIDAPI_HOST: 'INSTAGRAM_RAPIDAPI_HOST',
+
   // TikTok Research API
   TIKTOK_RESEARCH_CLIENT_KEY: 'TIKTOK_RESEARCH_CLIENT_KEY',
   TIKTOK_RESEARCH_CLIENT_SECRET: 'TIKTOK_RESEARCH_CLIENT_SECRET',

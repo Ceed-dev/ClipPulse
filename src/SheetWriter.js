@@ -327,9 +327,10 @@ function normalizeTikTokPost(apiResponse, driveUrl, memo = '') {
  */
 function normalizeInstagramPost(apiResponse, driveUrl, memo = '') {
   // Extract shortcode from permalink if not directly available
+  // Supports both /p/ (posts) and /reel/ (reels) URL patterns
   let shortcode = apiResponse.shortcode || '';
   if (!shortcode && apiResponse.permalink) {
-    const match = apiResponse.permalink.match(/\/p\/([^\/]+)/);
+    const match = apiResponse.permalink.match(/\/(?:p|reel)\/([^\/]+)/);
     if (match) {
       shortcode = match[1];
     }

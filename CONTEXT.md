@@ -401,6 +401,160 @@ The bug occurred because:
 
 The fix ensures users get a clear error message instead of a silent "success" with 0 data.
 
+### 2026-02-03 - Instagram Data Collection Improvement Investigation
+
+**Participants:** Human + Claude Opus 4.5
+
+**Context:**
+After testing the deployed ClipPulse, the human discovered that Instagram data collection via hashtag search was not populating all expected columns in the spreadsheet. Many fields were empty.
+
+**Problem Analysis:**
+
+From screenshot analysis, the following fields were empty in the Instagram sheet:
+- `create_username` - empty
+- `media_url` - empty
+- `thumbnail_url` - empty
+- `media_product_type` - empty
+- `is_comment_enabled` - empty
+- `is_shared_to_feed` - empty
+- `children` - empty
+- `edges_comments` - empty
+- `edges_insights` - empty
+- `edges_collaborators` - empty
+- `boost_ads_list` - empty
+- `boost_eligibility_info` - empty
+- `copyright_check_information_status` - empty
+
+Fields that were successfully populated:
+- `platform_post_id`, `posted_at`, `caption_or_description`, `post_url`, `like_count`, `comments_count`, `media_type`, `shortcode`, `drive_url`, `memo`
+
+**Root Cause:**
+
+Instagram Graph API **hashtag search endpoints** (`/{hashtag-id}/top_media` and `/{hashtag-id}/recent_media`) return **limited fields only**:
+- `id`, `caption`, `media_type`, `permalink`, `timestamp`, `like_count`, `comments_count`
+
+The following fields are **NOT available** via hashtag search (documented API limitation):
+- `media_url`, `thumbnail_url`, `username`, `shortcode` (direct), `media_product_type`, `is_comment_enabled`, `is_shared_to_feed`, `children`, and various edge fields
+
+This is a known limitation documented in:
+- Facebook Developer Docs: https://developers.facebook.com/docs/instagram-api/reference/ig-hashtag/top-media
+
+**Investigation Steps:**
+1. Comprehensive web research on Instagram Graph API limitations
+2. Investigation of third-party API alternatives (Data365, RapidAPI Instagram APIs, Apify)
+3. Analysis of oEmbed API possibilities (deprecated fields: `thumbnail_url`, `author_name`)
+4. Review of existing codebase implementation
+
+**Third-Party API Options Identified:**
+
+| Service | Features | Pricing |
+|---------|----------|---------|
+| RapidAPI Instagram API | 33+ endpoints, hashtag search, full data | Free: 100 req/month, PRO: $4.99/month |
+| Data365 Instagram API | Full public data, JSON responses | Free 14-day trial, custom pricing |
+| Apify Instagram Hashtag Scraper | captions, media URLs, usernames | $0.016/hashtag, $0.0004/item |
+
+**Implementation Changes Made:**
+
+1. **InstagramCollector.js - Enhanced `processHashtagMedia` function**
+   - Added `tryGetMediaDetails()` function to attempt fetching additional media details
+   - Added `extractUsernameFromPermalink()` function to extract username from URL patterns
+   - Enhanced media processing to merge additional details when available
+   - Added video download attempt when `media_url` is available
+   - Improved memo messages to indicate what data was/wasn't retrieved
+
+2. **SheetWriter.js - Fixed shortcode extraction**
+   - Updated regex pattern from `/\/p\/([^\/]+)/` to `/\/(?:p|reel)\/([^\/]+)/`
+   - Now supports both `/p/` (posts) and `/reel/` (reels) URL patterns
+
+**Expected Behavior After Changes:**
+
+The code now attempts to:
+1. Get additional details via `getMediaDetails()` for each media ID from hashtag search
+2. If successful (unlikely for non-owned media), merge the additional fields
+3. If failed (expected for non-owned media due to permissions), continue with basic data
+4. Extract username from permalink URL pattern if available
+5. Clearly document in memo what was/wasn't retrieved
+
+**Important Note:**
+The `getMediaDetails()` call is expected to **fail for non-owned media** due to Instagram Graph API permission restrictions. The API only allows detailed access to media owned by the authenticated user or accessible through authorized pages.
+
+### 2026-02-03 - Third-Party API (RapidAPI) Integration for Instagram
+
+**Participants:** Human + Claude Opus 4.5
+
+**Context:**
+After the initial investigation, the user approved implementing third-party API integration to solve the Instagram data field limitations.
+
+**Solution Implemented:**
+
+Created a new data enrichment system using RapidAPI Instagram APIs, similar to the TwitterAPI.io pattern used for X (Twitter).
+
+**New File Created:**
+- `src/InstagramRapidAPI.js` - Third-party Instagram data collection module
+
+**Key Functions:**
+- `isInstagramRapidAPIConfigured()` - Check if RapidAPI is configured
+- `callInstagramRapidAPI()` - Make requests to RapidAPI endpoints
+- `getHashtagPostsViaRapidAPI()` - Get posts by hashtag using RapidAPI
+- `getPostDetailsByShortcode()` - Get detailed post info by shortcode
+- `normalizeRapidAPIPost()` - Normalize various RapidAPI response formats
+- `enrichPostsWithRapidAPI()` - Enrich official API data with RapidAPI data
+- `testInstagramRapidAPI()` - Test RapidAPI connection
+
+**Files Modified:**
+
+1. **src/Config.js**
+   - Added `INSTAGRAM_RAPIDAPI_KEY` - RapidAPI API key
+   - Added `INSTAGRAM_RAPIDAPI_HOST` - API host (optional, has default)
+
+2. **src/InstagramCollector.js**
+   - Updated `processHashtagMedia()` with three-tier enrichment strategy:
+     1. **Priority 1:** RapidAPI (if configured) - gets all fields
+     2. **Priority 2:** Official API getMediaDetails - usually fails for non-owned media
+     3. **Priority 3:** Basic hashtag search data only
+
+**Configuration Required:**
+
+To enable RapidAPI enrichment, add to Script Properties:
+- `INSTAGRAM_RAPIDAPI_KEY`: Your RapidAPI API key
+- `INSTAGRAM_RAPIDAPI_HOST`: (optional) API host, defaults to `instagram-scraper-api2.p.rapidapi.com`
+
+**Supported RapidAPI Providers:**
+The implementation is designed to work with various RapidAPI Instagram API providers:
+- Instagram Scraper API2 (default)
+- Instagram API – Fast & Reliable Data Scraper
+- Other compatible providers (configure via INSTAGRAM_RAPIDAPI_HOST)
+
+**Data Enrichment Flow:**
+```
+Hashtag Search (Official API)
+         │
+         ▼
+┌─────────────────────────┐
+│ For each post:          │
+│ 1. Extract shortcode    │
+│ 2. Try RapidAPI         │◄─── If configured
+│ 3. Try Graph API        │◄─── Fallback
+│ 4. Use basic data       │◄─── Final fallback
+└─────────────────────────┘
+         │
+         ▼
+    Write to Sheet
+```
+
+**Memo Messages:**
+- `enriched via RapidAPI` - RapidAPI provided additional fields
+- `additional fields via Graph API media details` - Official API provided additional fields
+- `Instagram API does not provide media_url for hashtag search` - Neither API could enrich
+
+**Files Modified:**
+- `src/Config.js` - Added RapidAPI configuration keys
+- `src/InstagramCollector.js` - Added three-tier enrichment strategy
+- `src/SheetWriter.js` - Fixed shortcode extraction regex for reels
+
+**Files Created:**
+- `src/InstagramRapidAPI.js` - Third-party API integration module
+
 ## Guidelines for Future Sessions
 
 1. **Before Making Changes:** Always read this CONTEXT.md file first
@@ -412,3 +566,4 @@ The fix ensures users get a clear error message instead of a silent "success" wi
 7. **X Platform:** Fully implemented; requires `X_API_KEY` in Script Properties
 8. **OAuth for Instagram:** User must complete OAuth flow; token stored in UserProperties (not ScriptProperties)
 9. **Debug Logging:** Added console.log statements marked with `[DEBUG]` for troubleshooting
+10. **Instagram RapidAPI:** Optional; add `INSTAGRAM_RAPIDAPI_KEY` to enable data enrichment for hashtag search results
