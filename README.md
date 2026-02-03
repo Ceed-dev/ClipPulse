@@ -510,8 +510,10 @@ The memo column is mandatory and must be populated only when needed.
 - `X_API_KEY` (TwitterAPI.io API key)
 
 **Instagram RapidAPI (optional, for data enrichment):**
-- `INSTAGRAM_RAPIDAPI_KEY` (RapidAPI API key - enables fetching additional fields for hashtag search)
-- `INSTAGRAM_RAPIDAPI_HOST` (optional, defaults to `instagram-scraper-api2.p.rapidapi.com`)
+- `INSTAGRAM_RAPIDAPI_KEY` - RapidAPI API key (enables fetching additional fields like `media_url` and `username` for hashtag search results)
+- `INSTAGRAM_RAPIDAPI_HOST` - API host (required; set to `instagram-api-fast-reliable-data-scraper.p.rapidapi.com` for the "Instagram API – Fast & Reliable Data Scraper" provider)
+
+**Note:** The RapidAPI integration uses the `/media?id=...` endpoint which requires numeric Instagram media IDs. The Basic (free) plan includes 100 requests/month and supports "Media Data" lookups.
 
 **TikTok Research API (disabled):**
 - `TIKTOK_RESEARCH_CLIENT_KEY`

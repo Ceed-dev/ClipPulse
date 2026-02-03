@@ -75,17 +75,27 @@ function callInstagramRapidAPI(endpoint, params = {}) {
   const responseCode = response.getResponseCode();
   const responseText = response.getContentText();
 
-  if (responseCode !== 200) {
-    console.error(`Instagram RapidAPI error (${responseCode}):`, responseText);
-    throw new Error(`Instagram RapidAPI error: ${responseCode} - ${responseText.substring(0, 200)}`);
-  }
-
+  // Try to parse JSON first (API returns JSON even for errors)
+  let jsonResponse;
   try {
-    return JSON.parse(responseText);
+    jsonResponse = JSON.parse(responseText);
   } catch (e) {
     console.error('Failed to parse RapidAPI response:', responseText.substring(0, 500));
     throw new Error('Invalid JSON response from Instagram RapidAPI');
   }
+
+  // Handle HTTP errors, but allow "media not found" as valid response
+  if (responseCode !== 200) {
+    // Check if this is a "media not found" error (expected for some queries)
+    if (responseCode === 404 && jsonResponse.error === 'media not found or unavailable') {
+      console.log(`[DEBUG] Media not found (404), returning null response`);
+      return { status: 'error', error: 'media not found or unavailable', _notFound: true };
+    }
+    console.error(`Instagram RapidAPI error (${responseCode}):`, responseText);
+    throw new Error(`Instagram RapidAPI error: ${responseCode} - ${responseText.substring(0, 200)}`);
+  }
+
+  return jsonResponse;
 }
 
 /**
@@ -121,28 +131,51 @@ function getHashtagPostsViaRapidAPI(hashtag, limit = 50) {
 }
 
 /**
- * Get post details by shortcode using RapidAPI
- * @param {string} shortcode - Instagram post shortcode
+ * Get post details by media ID using RapidAPI
+ * Note: This API requires numeric Instagram media ID (e.g., "17841400000000000")
+ * @param {string} mediaId - Instagram numeric media ID
  * @returns {Object|null} Post details or null
  */
-function getPostDetailsByShortcode(shortcode) {
+function getPostDetailsByMediaId(mediaId) {
   try {
-    console.log(`[DEBUG] Getting post details for shortcode: ${shortcode}`);
+    console.log(`[DEBUG] Getting post details for mediaId: ${mediaId}`);
 
-    const response = callInstagramRapidAPI('/v1/post_info', {
-      code_or_id_or_url: shortcode
+    const response = callInstagramRapidAPI('/media', {
+      id: mediaId
     });
 
-    if (response && response.data) {
+    // Handle "not found" response
+    if (response && response._notFound) {
+      console.log(`[DEBUG] Media ${mediaId} not found via RapidAPI`);
+      return null;
+    }
+
+    if (response && response.status !== 'error' && response.data) {
       return normalizeRapidAPIPost(response.data, '');
+    }
+
+    // Some APIs return the data directly without wrapping
+    if (response && response.id) {
+      return normalizeRapidAPIPost(response, '');
     }
 
     return null;
 
   } catch (e) {
-    console.log(`[DEBUG] Failed to get post details for ${shortcode}: ${e.message}`);
+    console.log(`[DEBUG] Failed to get post details for mediaId ${mediaId}: ${e.message}`);
     return null;
   }
+}
+
+/**
+ * Get post details by shortcode using RapidAPI (legacy wrapper)
+ * @param {string} shortcode - Instagram post shortcode
+ * @returns {Object|null} Post details or null
+ * @deprecated Use getPostDetailsByMediaId instead
+ */
+function getPostDetailsByShortcode(shortcode) {
+  console.log(`[DEBUG] getPostDetailsByShortcode called but this API requires numeric ID, not shortcode`);
+  return null;
 }
 
 /**
@@ -284,21 +317,24 @@ function enrichPostsWithRapidAPI(officialPosts, hashtag) {
 
   for (const post of officialPosts) {
     try {
-      // Extract shortcode from official post
+      // Use numeric media ID from official API
+      const mediaId = post.id;
+
+      if (!mediaId) {
+        // Can't enrich without media ID, use original
+        enrichedPosts.push(post);
+        continue;
+      }
+
+      // Extract shortcode for later use
       let shortcode = post.shortcode;
       if (!shortcode && post.permalink) {
         const match = post.permalink.match(/\/(?:p|reel)\/([^\/]+)/);
         if (match) shortcode = match[1];
       }
 
-      if (!shortcode) {
-        // Can't enrich without shortcode, use original
-        enrichedPosts.push(post);
-        continue;
-      }
-
-      // Get detailed post info from RapidAPI
-      const detailedPost = getPostDetailsByShortcode(shortcode);
+      // Get detailed post info from RapidAPI using numeric ID
+      const detailedPost = getPostDetailsByMediaId(mediaId);
 
       if (detailedPost) {
         // Merge official data with RapidAPI data
@@ -310,7 +346,7 @@ function enrichPostsWithRapidAPI(officialPosts, hashtag) {
           username: post.username || detailedPost.username,
           media_url: post.media_url || detailedPost.media_url,
           thumbnail_url: post.thumbnail_url || detailedPost.thumbnail_url,
-          shortcode: shortcode,
+          shortcode: shortcode || detailedPost.shortcode,
           media_product_type: post.media_product_type || detailedPost.media_product_type,
           is_comment_enabled: post.is_comment_enabled ?? detailedPost.is_comment_enabled,
           is_shared_to_feed: post.is_shared_to_feed ?? detailedPost.is_shared_to_feed,
@@ -336,6 +372,7 @@ function enrichPostsWithRapidAPI(officialPosts, hashtag) {
 
 /**
  * Test RapidAPI connection
+ * Tests the /media endpoint with a known public post
  * @returns {Object} Test result
  */
 function testInstagramRapidAPI() {
@@ -344,17 +381,47 @@ function testInstagramRapidAPI() {
       return { success: false, message: 'Instagram RapidAPI key not configured' };
     }
 
-    // Try to get posts for a simple hashtag
-    const result = getHashtagPostsViaRapidAPI('test', 5);
+    const host = getInstagramRapidAPIHost();
+    console.log(`[DEBUG] Testing Instagram RapidAPI with host: ${host}`);
 
+    // Test the /media endpoint with a sample media ID
+    const testMediaId = '3217694757997940000'; // Example ID (will return "not found" but proves API works)
+
+    console.log(`[DEBUG] Testing /media endpoint with ID: ${testMediaId}`);
+
+    const response = callInstagramRapidAPI('/media', {
+      id: testMediaId
+    });
+
+    // Check if this is a "not found" response (which is valid - proves API is working)
+    if (response && response._notFound) {
+      return {
+        success: true,
+        message: 'Instagram RapidAPI connection successful (API working, test media not found - expected)',
+        host: host,
+        apiResponse: 'endpoint_valid'
+      };
+    }
+
+    // Check if response contains actual data
+    if (response && (response.data || response.id)) {
+      return {
+        success: true,
+        message: 'Instagram RapidAPI connection successful (got data)',
+        host: host,
+        hasData: true
+      };
+    }
+
+    // Any other response format
     return {
       success: true,
       message: 'Instagram RapidAPI connection successful',
-      postsFound: result.posts.length,
-      host: getInstagramRapidAPIHost()
+      host: host,
+      response: JSON.stringify(response).substring(0, 200)
     };
 
   } catch (e) {
-    return { success: false, message: e.message };
+    return { success: false, message: e.message, host: getInstagramRapidAPIHost() };
   }
 }

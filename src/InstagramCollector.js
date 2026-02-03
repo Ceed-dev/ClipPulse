@@ -526,10 +526,11 @@ function processHashtagMedia(runId, state, media, hashtag) {
   enrichedMedia.shortcode = shortcode;
 
   // Strategy 1: Try RapidAPI if configured (preferred for getting all fields)
-  if (isInstagramRapidAPIConfigured() && shortcode) {
+  // Note: This API requires numeric media ID, not shortcode
+  if (isInstagramRapidAPIConfigured() && mediaId) {
     try {
-      console.log(`[DEBUG] Attempting to enrich post ${shortcode} via RapidAPI`);
-      const rapidAPIData = getPostDetailsByShortcode(shortcode);
+      console.log(`[DEBUG] Attempting to enrich post ${mediaId} via RapidAPI`);
+      const rapidAPIData = getPostDetailsByMediaId(mediaId);
 
       if (rapidAPIData && (rapidAPIData.username || rapidAPIData.media_url)) {
         enrichedMedia = {

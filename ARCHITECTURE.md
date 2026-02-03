@@ -68,6 +68,14 @@ ClipPulse is a Google Apps Script-based tool that collects social media data fro
 - Normalizes API responses to fixed 23-column schema
 - Handles pagination and deduplication
 - Creates Drive artifacts (video or watch.html)
+- Supports optional RapidAPI enrichment for hashtag search results
+
+### 4a. Instagram RapidAPI (`InstagramRapidAPI.js`)
+- Optional third-party data enrichment for hashtag search results
+- Official Instagram Graph API hashtag search returns limited fields (no `media_url`, `username`, etc.)
+- RapidAPI `/media?id=...` endpoint provides additional fields
+- Uses numeric Instagram media IDs (not shortcodes)
+- Gracefully handles "media not found" responses (returns null, doesn't fail)
 
 ### 5. X Collector (`XCollector.js`)
 - Uses TwitterAPI.io Advanced Search API
@@ -273,12 +281,15 @@ Optional:
 - `MAX_POSTS_PER_PLATFORM_DEFAULT` - Default: 30
 - `BATCH_SIZE` - Default: 15
 - `USE_MOCKS` - Enable mock mode for testing
+- `INSTAGRAM_RAPIDAPI_KEY` - RapidAPI key for Instagram data enrichment
+- `INSTAGRAM_RAPIDAPI_HOST` - RapidAPI host (e.g., `instagram-api-fast-reliable-data-scraper.p.rapidapi.com`)
 
 ## External Dependencies
 
 - **OAuth2 Library**: `googleworkspace/apps-script-oauth2` (v43)
 - **OpenAI API**: Chat Completions endpoint with JSON mode
 - **Instagram Graph API**: v18.0+ (requires professional account)
+- **Instagram RapidAPI** (optional): "Instagram API – Fast & Reliable Data Scraper" for data enrichment
 - **TwitterAPI.io**: Advanced Search API (API key authentication)
 
 ## X API Query Syntax

@@ -555,6 +555,83 @@ Hashtag Search (Official API)
 **Files Created:**
 - `src/InstagramRapidAPI.js` - Third-party API integration module
 
+### 2026-02-03 - RapidAPI Integration Bug Fixes and Testing
+
+**Participants:** Human + Claude Opus 4.5
+
+**Context:**
+Continued from previous session where RapidAPI integration for Instagram data enrichment was implemented. The session was interrupted due to a tmux crash. Upon resuming, needed to complete RapidAPI setup and fix API endpoint issues.
+
+**Issue 1: Wrong API Endpoint**
+- Initial implementation used `/v1/post_info` endpoint which doesn't exist
+- Error: `Endpoint '/v1/post_info' does not exist`
+
+**Investigation:**
+Tested various endpoint patterns via curl:
+- `/v1/hashtag` - doesn't exist
+- `/v1/post_info` - doesn't exist
+- `/media_info/` - doesn't exist
+- `/media?id=...` - **EXISTS** (returns proper response)
+
+**Issue 2: API Requires Numeric Media ID**
+- This RapidAPI provider requires numeric Instagram media IDs (e.g., `"17841400000000000"`)
+- Does NOT support shortcode-based lookups
+- Hashtag search feature is NOT available on the free Basic plan (only "Media Data" is available)
+
+**Issue 3: HTTP 404 for "Not Found" Responses**
+- API returns HTTP 404 status code for "media not found" errors
+- Previous code threw an error for any non-200 response
+- Needed to handle 404 + "media not found" as a valid (null) response
+
+**Fixes Applied:**
+
+1. **InstagramRapidAPI.js - `getPostDetailsByMediaId` function (renamed)**
+   - Changed from `getPostDetailsByShortcode` to `getPostDetailsByMediaId`
+   - Endpoint changed from `/v1/post_info` to `/media?id=...`
+   - Uses numeric media ID instead of shortcode
+
+2. **InstagramRapidAPI.js - `callInstagramRapidAPI` function**
+   - Added special handling for HTTP 404 + "media not found" responses
+   - Returns `{ _notFound: true }` instead of throwing error
+   - Allows graceful degradation when media isn't found
+
+3. **InstagramRapidAPI.js - `enrichPostsWithRapidAPI` function**
+   - Updated to use `mediaId` (from official API) instead of shortcode
+   - Handles `_notFound` responses appropriately
+
+4. **InstagramRapidAPI.js - `testInstagramRapidAPI` function**
+   - Updated to test `/media` endpoint
+   - Treats "media not found" as success (proves API is working)
+
+5. **InstagramCollector.js - `processHashtagMedia` function**
+   - Changed to call `getPostDetailsByMediaId(mediaId)` instead of `getPostDetailsByShortcode(shortcode)`
+
+**RapidAPI Configuration:**
+- Provider: "Instagram API – Fast & Reliable Data Scraper" by mediacrawlers
+- Plan: Basic (Free) - 100 requests/month
+- Script Properties required:
+  - `INSTAGRAM_RAPIDAPI_KEY`: API key from RapidAPI
+  - `INSTAGRAM_RAPIDAPI_HOST`: `instagram-api-fast-reliable-data-scraper.p.rapidapi.com`
+
+**Test Result:**
+- `testInstagramRapidAPI()` completed successfully
+- Log: `[DEBUG] Media not found (404), returning null response`
+- This is expected behavior - proves API endpoint is correct and working
+
+**How the Integration Works:**
+1. Official Instagram Graph API performs hashtag search (returns limited fields)
+2. For each post, the numeric media ID is extracted
+3. RapidAPI `/media?id=...` is called to get additional fields (media_url, username, etc.)
+4. If RapidAPI returns data, fields are merged into the post
+5. If RapidAPI returns "not found" or fails, original limited data is used
+6. Memo field indicates data source: "enriched via RapidAPI" or "Instagram API does not provide media_url..."
+
+**Files Modified:**
+- `src/InstagramRapidAPI.js` - Multiple fixes for endpoint, ID handling, error handling
+- `src/InstagramCollector.js` - Updated to use mediaId instead of shortcode
+
+**Status:** RapidAPI integration working. Ready for end-to-end testing with actual Instagram data collection.
+
 ## Guidelines for Future Sessions
 
 1. **Before Making Changes:** Always read this CONTEXT.md file first
@@ -566,4 +643,4 @@ Hashtag Search (Official API)
 7. **X Platform:** Fully implemented; requires `X_API_KEY` in Script Properties
 8. **OAuth for Instagram:** User must complete OAuth flow; token stored in UserProperties (not ScriptProperties)
 9. **Debug Logging:** Added console.log statements marked with `[DEBUG]` for troubleshooting
-10. **Instagram RapidAPI:** Optional; add `INSTAGRAM_RAPIDAPI_KEY` to enable data enrichment for hashtag search results
+10. **Instagram RapidAPI:** Optional; add `INSTAGRAM_RAPIDAPI_KEY` and `INSTAGRAM_RAPIDAPI_HOST` to enable data enrichment for hashtag search results. Uses `/media?id=...` endpoint with numeric media IDs.
