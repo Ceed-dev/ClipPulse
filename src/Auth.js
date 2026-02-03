@@ -297,8 +297,11 @@ function getMetaAccessToken() {
 function isMetaAuthorized() {
   try {
     const service = getMetaOAuthService();
-    return service.hasAccess();
+    const hasAccess = service.hasAccess();
+    console.log(`[DEBUG] isMetaAuthorized: hasAccess=${hasAccess}`);
+    return hasAccess;
   } catch (e) {
+    console.log(`[DEBUG] isMetaAuthorized: error=${e.message}`);
     return false;
   }
 }

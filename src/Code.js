@@ -263,6 +263,71 @@ function bulkSetProperties(properties) {
 // ============================================================
 
 /**
+ * Check platform configuration status (for troubleshooting 0-data bug)
+ * Run this function to see detailed platform status in the Execution log
+ * @returns {Object} Platform configuration status
+ */
+function checkPlatformStatus() {
+  console.log('=== Platform Configuration Status ===\n');
+
+  // Check X (Twitter) configuration
+  const xApiKey = getConfig(CONFIG_KEYS.X_API_KEY);
+  const xConfigured = isXConfigured();
+  console.log('X (Twitter):');
+  console.log('  X_API_KEY set:', xApiKey ? 'YES (length: ' + xApiKey.length + ')' : 'NO');
+  console.log('  isXConfigured():', xConfigured);
+
+  // Check Instagram configuration
+  const metaAppId = getConfig(CONFIG_KEYS.META_APP_ID);
+  const metaAppSecret = getConfig(CONFIG_KEYS.META_APP_SECRET);
+  const igUserId = getConfig(CONFIG_KEYS.IG_DEFAULT_IG_USER_ID);
+  const igConfigured = isInstagramConfigured();
+  const igAuthorized = isMetaAuthorized();
+  console.log('\nInstagram:');
+  console.log('  META_APP_ID set:', metaAppId ? 'YES' : 'NO');
+  console.log('  META_APP_SECRET set:', metaAppSecret ? 'YES' : 'NO');
+  console.log('  IG_DEFAULT_IG_USER_ID set:', igUserId || 'NO');
+  console.log('  isInstagramConfigured():', igConfigured);
+  console.log('  isMetaAuthorized():', igAuthorized);
+
+  // Check mock mode
+  const mockMode = isMockMode();
+  console.log('\nMock Mode:');
+  console.log('  isMockMode():', mockMode);
+  console.log('  USE_MOCKS:', getConfig('USE_MOCKS') || 'not set');
+
+  // Summary
+  const hasAnyPlatform = xConfigured || igAuthorized || mockMode;
+  console.log('\n=== Summary ===');
+  console.log('At least one platform available:', hasAnyPlatform ? 'YES' : 'NO - WILL FAIL!');
+
+  if (!hasAnyPlatform) {
+    console.log('\nWARNING: No platforms are configured!');
+    console.log('startRun() will throw an error.');
+    console.log('\nTo fix:');
+    console.log('1. For X (Twitter): Add X_API_KEY to Script Properties');
+    console.log('2. For Instagram: Complete Meta OAuth flow (run logAuthUrls())');
+    console.log('3. For testing: Set USE_MOCKS=true in Script Properties');
+  }
+
+  return {
+    x: {
+      configured: xConfigured,
+      apiKeySet: !!xApiKey
+    },
+    instagram: {
+      configured: igConfigured,
+      authorized: igAuthorized,
+      appIdSet: !!metaAppId,
+      appSecretSet: !!metaAppSecret,
+      userIdSet: !!igUserId
+    },
+    mockMode: mockMode,
+    hasAnyPlatform: hasAnyPlatform
+  };
+}
+
+/**
  * Check authentication status and Instagram connection
  * Run this function to see detailed status in the Execution log
  */

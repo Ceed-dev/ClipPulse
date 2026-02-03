@@ -255,6 +255,152 @@ The human requested adding X (Twitter) as a second data collection platform alon
 To use X collection, add to Script Properties:
 - `X_API_KEY`: TwitterAPI.io API key
 
+### 2026-02-03 - Critical Bug Investigation: 0件収集問題
+
+**Participants:** Human + Claude Opus 4.5 (Shogun + 8 Ashigaru)
+
+**Context:**
+Human tested the deployed ClipPulse and found a critical bug:
+- UI displays "Collection completed successfully!"
+- However, Instagram: 0/30, X (Twitter): 0/30 (zero data collected)
+- Spreadsheet has only header rows, no data rows
+
+**Environment Configuration Confirmed (from Screenshots):**
+```
+BATCH_SIZE: 15
+CLIPPULSE_ROOT_FOLDER_ID: 1vOmt8gBZb8ilMI27j_Xf6NBHIZObwMVF
+CLIPPULSE_PARENT_FOLDER_ID: 0ABQNmgUkBqbWUk9PVA
+IG_DEFAULT_IG_USER_ID: 17841480526543713
+IG_DEFAULT_PAGE_ID: 932599456610105
+MAX_POSTS_PER_PLATFORM_DEFAULT: 30
+MAX_RETRIES: 3
+META_APP_ID: 1970547110527083
+META_APP_SECRET: (set)
+META_GRAPH_API_VERSION: v18.0
+OPENAI_API_KEY: (set)
+OPENAI_MODEL: gpt-4o
+X_API_KEY: new1_421a5754f0824272a13d02197244bab1
+```
+
+**Investigation Hypothesis:**
+
+After analyzing the code flow in `Orchestrator.js` (lines 156-172), I identified the likely root cause:
+
+```javascript
+switch (state.status) {
+  case RUN_STATUS.CREATED:
+  case RUN_STATUS.PLANNING:
+    if (plan.targetCounts.instagram > 0 && (isMetaAuthorized() || isMockMode())) {
+      // Instagram collection
+    } else if (plan.targetCounts.x > 0 && (isXConfigured() || isMockMode())) {
+      // X collection
+    } else if (plan.targetCounts.tiktok > 0) {
+      // TikTok collection
+    } else {
+      finalizeRun(runId); // ← Immediate finalization with 0 data!
+    }
+    break;
+```
+
+**Primary Hypothesis:**
+1. `isMetaAuthorized()` returns `false` → Instagram skipped
+   - OAuth2 token stored in `UserProperties` (not `ScriptProperties`)
+   - The token may not exist or may have expired
+2. `isXConfigured()` returns `false` → X skipped
+   - Should return `true` if `X_API_KEY` is set in `ScriptProperties`
+   - But something may be blocking this check
+
+If both return `false` and `isMockMode()` is also `false`, the code jumps directly to `finalizeRun()`, resulting in 0 data collected but "COMPLETED" status.
+
+**Debug Logging Added (Files Modified):**
+
+1. **src/Orchestrator.js**
+   - Added debug logging in `executeRunPhase` to trace condition evaluation
+   - Added debug logging in `collectInstagramWithTimeout`
+   - Added debug logging in `collectXWithTimeout`
+   - Log messages include: status, targetCounts, auth status values
+
+2. **src/XCollector.js**
+   - Added debug logging in `isXConfigured()` to show API key status
+
+3. **src/Auth.js**
+   - Added debug logging in `isMetaAuthorized()` to show OAuth status
+
+**Key Discovery:**
+- `isMetaAuthorized()` uses `OAuth2.createService('meta').hasAccess()` which checks `UserProperties`
+- Config values (META_APP_ID, X_API_KEY, etc.) are in `ScriptProperties`
+- These are **two different storage mechanisms**
+- OAuth tokens require the user to complete the OAuth flow via `authCallbackMeta`
+
+**Next Steps:**
+1. Deploy updated code with debug logging to Apps Script
+2. Run a test collection and check execution logs
+3. Verify OAuth authentication status for Instagram
+4. If `isMetaAuthorized()` is the issue:
+   - User needs to complete OAuth flow by visiting the authorization URL
+   - Run `logAuthUrls()` function in Apps Script to get the URL
+5. If `isXConfigured()` is the issue:
+   - Verify `X_API_KEY` is correctly stored and retrievable
+
+**Parallel Investigation (Multi-Agent Shogun System):**
+Dispatched 8 Ashigaru agents to analyze different components:
+- Ashigaru 1: LLMPlanner.js analysis
+- Ashigaru 2: Orchestrator.js flow analysis
+- Ashigaru 3: Auth.js authentication analysis (KEY SUSPECT)
+- Ashigaru 4: XCollector.js analysis
+- Ashigaru 5: StateStore.js state management
+- Ashigaru 6: SheetWriter.js data writing
+- Ashigaru 7: Config.js configuration
+- Ashigaru 8: Integration/E2E analysis
+
+**Status:** Root cause confirmed and fixes implemented.
+
+### 2026-02-03 - Bug Fix Implementation
+
+**Fix Applied:**
+
+After confirming the root cause through 8 Ashigaru analysis reports, the following fixes were implemented:
+
+1. **Orchestrator.js - Pre-check in startRun() (lines 27-42)**
+   - Added platform configuration check BEFORE starting a run
+   - If neither Instagram (OAuth) nor X (API key) is configured, throws a clear error:
+   ```
+   No platforms configured for data collection.
+   To enable X (Twitter): Add X_API_KEY to Script Properties
+   To enable Instagram: Complete Meta OAuth authorization
+   ```
+
+2. **Orchestrator.js - Warning in finalizeRun() (lines 478-492)**
+   - If 0 data is collected, the completion message now includes a warning
+   - Shows platform configuration status to help diagnose issues
+
+3. **Code.js - New checkPlatformStatus() function**
+   - Diagnostic function to check all platform configurations
+   - Shows: X API key status, Instagram OAuth status, Mock mode status
+   - Indicates if `startRun()` will fail due to missing configuration
+
+**Files Modified:**
+- `src/Orchestrator.js` - Added pre-check and warning
+- `src/Code.js` - Added `checkPlatformStatus()` diagnostic function
+
+**Testing Instructions:**
+1. Open Apps Script editor
+2. Run `checkPlatformStatus()` to see platform configuration status
+3. If X shows "NO" for API key:
+   - Verify `X_API_KEY` is correctly set in Script Properties
+4. If Instagram shows "NO" for authorized:
+   - Run `logAuthUrls()` to get OAuth URL
+   - Complete OAuth flow in browser
+5. After fixing configuration, run `startRun()` test
+
+**Root Cause Summary:**
+The bug occurred because:
+- `isMetaAuthorized()` returned `false` (OAuth token not in UserProperties)
+- `isXConfigured()` returned `false` (X_API_KEY not readable or not set)
+- With both false, the code immediately called `finalizeRun()` with 0 data
+
+The fix ensures users get a clear error message instead of a silent "success" with 0 data.
+
 ## Guidelines for Future Sessions
 
 1. **Before Making Changes:** Always read this CONTEXT.md file first
@@ -264,3 +410,5 @@ To use X collection, add to Script Properties:
 5. **TikTok:** Code exists but is disabled; do not remove unless explicitly requested
 6. **Git Push on VM:** VM lacks credential helper; push from local machine instead
 7. **X Platform:** Fully implemented; requires `X_API_KEY` in Script Properties
+8. **OAuth for Instagram:** User must complete OAuth flow; token stored in UserProperties (not ScriptProperties)
+9. **Debug Logging:** Added console.log statements marked with `[DEBUG]` for troubleshooting

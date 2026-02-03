@@ -375,7 +375,9 @@ function expandXSearch(runId, plan) {
  */
 function isXConfigured() {
   const apiKey = getConfig(CONFIG_KEYS.X_API_KEY);
-  return !!apiKey;
+  const isConfigured = !!apiKey;
+  console.log(`[DEBUG] isXConfigured: apiKey=${apiKey ? 'SET (length=' + apiKey.length + ')' : 'NOT SET'}, result=${isConfigured}`);
+  return isConfigured;
 }
 
 /**

@@ -23,6 +23,24 @@ function startRun(instruction) {
     if (!configValidation.isValid) {
       throw new Error(`Missing configuration: ${configValidation.missingKeys.join(', ')}`);
     }
+
+    // Check platform configuration BEFORE starting the run
+    const hasInstagram = isMetaAuthorized();
+    const hasX = isXConfigured();
+
+    console.log(`[DEBUG] startRun: Platform check - Instagram authorized: ${hasInstagram}, X configured: ${hasX}`);
+
+    if (!hasInstagram && !hasX) {
+      throw new Error(
+        'No platforms configured for data collection.\n\n' +
+        'To enable X (Twitter):\n' +
+        '  - Add X_API_KEY to Script Properties\n\n' +
+        'To enable Instagram:\n' +
+        '  - Complete Meta OAuth authorization\n' +
+        '  - Run logAuthUrls() to get the authorization URL\n\n' +
+        'At least one platform must be configured to collect data.'
+      );
+    }
   }
 
   // Generate run ID
@@ -152,21 +170,34 @@ function executeRunPhase(runId, state) {
 
   const plan = state.plan;
 
+  // Debug logging for troubleshooting
+  const metaAuth = isMetaAuthorized();
+  const xConfigured = isXConfigured();
+  const mockMode = isMockMode();
+  console.log(`[DEBUG] executeRunPhase: status=${state.status}`);
+  console.log(`[DEBUG] targetCounts: instagram=${plan.targetCounts.instagram}, x=${plan.targetCounts.x}, tiktok=${plan.targetCounts.tiktok}`);
+  console.log(`[DEBUG] Auth status: isMetaAuthorized=${metaAuth}, isXConfigured=${xConfigured}, isMockMode=${mockMode}`);
+
   // Determine current phase based on status
   switch (state.status) {
     case RUN_STATUS.CREATED:
     case RUN_STATUS.PLANNING:
       // Move to Instagram collection first
-      if (plan.targetCounts.instagram > 0 && (isMetaAuthorized() || isMockMode())) {
+      if (plan.targetCounts.instagram > 0 && (metaAuth || mockMode)) {
+        console.log('[DEBUG] Starting Instagram collection');
         updateRunStatus(runId, RUN_STATUS.RUNNING_INSTAGRAM, 'Collecting Instagram data...');
         executeRunPhase(runId, loadRunState(runId));
-      } else if (plan.targetCounts.x > 0 && (isXConfigured() || isMockMode())) {
+      } else if (plan.targetCounts.x > 0 && (xConfigured || mockMode)) {
+        console.log('[DEBUG] Starting X collection (Instagram skipped or not configured)');
         updateRunStatus(runId, RUN_STATUS.RUNNING_X, 'Collecting X data...');
         executeRunPhase(runId, loadRunState(runId));
       } else if (plan.targetCounts.tiktok > 0) {
+        console.log('[DEBUG] Starting TikTok collection');
         updateRunStatus(runId, RUN_STATUS.RUNNING_TIKTOK, 'Collecting TikTok data...');
         executeRunPhase(runId, loadRunState(runId));
       } else {
+        console.log('[DEBUG] No collection to perform, finalizing immediately');
+        console.log('[DEBUG] This is likely a bug - check isMetaAuthorized() and isXConfigured() implementations');
         finalizeRun(runId);
       }
       break;
@@ -197,11 +228,14 @@ function executeRunPhase(runId, state) {
  * @param {number} maxTime - Maximum execution time in ms
  */
 function collectInstagramWithTimeout(runId, plan, startTime, maxTime) {
+  console.log('[DEBUG] collectInstagramWithTimeout called');
   const state = loadRunState(runId);
   const target = plan.targetCounts.instagram;
   let collected = state.instagramProgress.collected;
+  console.log(`[DEBUG] Instagram target=${target}, collected=${collected}`);
 
   if (!isMetaAuthorized() && !isMockMode()) {
+    console.log('[DEBUG] Instagram not authorized and not mock mode, skipping');
     updateRunStatus(runId, RUN_STATUS.RUNNING_INSTAGRAM,
       'Instagram not authorized; skipping');
     moveToNextPhase(runId, 'instagram');
@@ -258,11 +292,14 @@ function collectInstagramWithTimeout(runId, plan, startTime, maxTime) {
  * @param {number} maxTime - Maximum execution time in ms
  */
 function collectXWithTimeout(runId, plan, startTime, maxTime) {
+  console.log('[DEBUG] collectXWithTimeout called');
   const state = loadRunState(runId);
   const target = plan.targetCounts.x;
   let collected = state.xProgress?.collected || 0;
+  console.log(`[DEBUG] X target=${target}, collected=${collected}`);
 
   if (!isXConfigured() && !isMockMode()) {
+    console.log('[DEBUG] X API not configured and not mock mode, skipping');
     updateRunStatus(runId, RUN_STATUS.RUNNING_X,
       'X API not configured; skipping');
     moveToNextPhase(runId, 'x');
@@ -438,10 +475,24 @@ function finalizeRun(runId) {
 
     // Update status to completed
     const summary = getRunSummary(runId);
-    updateRunStatus(runId, RUN_STATUS.COMPLETED,
-      `Completed: Instagram ${summary.instagramCollected}/${summary.instagramTarget}, ` +
-      `X ${summary.xCollected}/${summary.xTarget}, ` +
-      `TikTok ${summary.tiktokCollected}/${summary.tiktokTarget}`);
+    const totalCollected = (summary.instagramCollected || 0) + (summary.xCollected || 0) + (summary.tiktokCollected || 0);
+
+    // Check if 0 data was collected - this indicates a configuration issue
+    if (totalCollected === 0) {
+      const metaAuth = isMetaAuthorized();
+      const xConfig = isXConfigured();
+      console.log(`[WARNING] finalizeRun: 0 data collected! Instagram authorized: ${metaAuth}, X configured: ${xConfig}`);
+
+      updateRunStatus(runId, RUN_STATUS.COMPLETED,
+        `WARNING: No data collected (0 posts).\n` +
+        `Platform status: Instagram authorized: ${metaAuth}, X configured: ${xConfig}\n` +
+        `Please check platform configuration.`);
+    } else {
+      updateRunStatus(runId, RUN_STATUS.COMPLETED,
+        `Completed: Instagram ${summary.instagramCollected}/${summary.instagramTarget}, ` +
+        `X ${summary.xCollected}/${summary.xTarget}, ` +
+        `TikTok ${summary.tiktokCollected}/${summary.tiktokTarget}`);
+    }
 
     // Cleanup
     PropertiesService.getScriptProperties().deleteProperty('PENDING_RUN_ID');
