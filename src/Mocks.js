@@ -166,7 +166,7 @@ function mockCreatePostArtifacts(platformFolderId, postId, postData, rawApiRespo
 
   // Return mock result
   return {
-    driveUrl: `https://drive.google.com/mock/${platform}/${postId}`,
+    refUrl: `https://drive.google.com/mock/${platform}/${postId}`,
     postFolderId: `mock_folder_${postId}`,
     postFolderUrl: `https://drive.google.com/mock/folder/${postId}`,
     memo: 'MOCK: Artifacts not actually created'
@@ -231,7 +231,7 @@ function collectInstagramWithMocks(runId, plan, onProgress) {
       'instagram'
     );
 
-    const normalizedPost = normalizeInstagramPost(media, artifactResult.driveUrl, 'MOCK DATA');
+    const normalizedPost = normalizeInstagramPost(media, artifactResult.refUrl, 'MOCK DATA');
     postsToWrite.push(normalizedPost);
     addProcessedPostId(runId, 'instagram', mediaId);
   }
@@ -366,7 +366,7 @@ function collectXWithMocks(runId, plan, onProgress) {
       'x'
     );
 
-    const normalizedPost = normalizeXPost(tweet, artifactResult.driveUrl, 'MOCK DATA');
+    const normalizedPost = normalizeXPost(tweet, artifactResult.refUrl, 'MOCK DATA');
     postsToWrite.push(normalizedPost);
     addProcessedPostId(runId, 'x', tweetId);
   }

@@ -703,7 +703,7 @@ function testHashtagCollectionWithArtifacts() {
       const result = processHashtagMedia(runId, reloadedState, media, 'skincare');
       if (result.processed) {
         postsToWrite.push(result.normalizedPost);
-        console.log('  - drive_url:', result.normalizedPost.drive_url);
+        console.log('  - ref_url:', result.normalizedPost.ref_url);
         console.log('  - memo:', result.normalizedPost.memo);
       }
     }

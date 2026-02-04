@@ -763,6 +763,80 @@ Human requested adding HTTP API endpoints to ClipPulse for integration with n8n 
 - Implementation complete
 - Ready for testing and deployment
 
+### 2026-02-04 - Column Rename (drive_url → ref_url) and Instagram Video Download Enhancement
+
+**Participants:** Human + Claude Opus 4.5 (Multi-Agent Shogun System)
+
+**Context:**
+The human requested two improvements:
+1. Rename `drive_url` column to `ref_url` for more generic naming
+2. Add actual video download capability from RapidAPI-provided video URLs
+
+**Completed Tasks:**
+
+#### 1. Column Rename: drive_url → ref_url
+
+**Rationale:**
+The `drive_url` name was misleading as it implied Google Drive URLs only. The column actually contains:
+- Instagram: Google Drive video URLs (video.mp4) or watch.html fallback
+- X (Twitter): Direct tweet URLs (https://x.com/...)
+
+Renamed to `ref_url` (reference URL) for more generic and accurate naming.
+
+**Files Modified:**
+- `src/SheetWriter.js` - Renamed column header and normalizer field
+- `src/StateStore.js` - Updated any references
+- `src/InstagramCollector.js` - Updated field names
+- `src/InstagramRapidAPI.js` - Updated field names
+- `src/XCollector.js` - Updated field names
+- `README.md` - Updated documentation
+- `ARCHITECTURE.md` - Updated documentation
+- `CONTEXT.md` - This session log
+
+#### 2. Instagram Video Download from RapidAPI
+
+**Problem:**
+When using RapidAPI for Instagram data enrichment, the `video_url` field was available but not being used. Instead, a watch.html fallback was created even when actual video download was possible.
+
+**Solution:**
+Added `downloadVideoFromRapidAPI()` function to download actual video files when RapidAPI provides a `video_url`.
+
+**Implementation:**
+```javascript
+function downloadVideoFromRapidAPI(videoUrl, folderId, filename) {
+  // Download video from RapidAPI-provided URL
+  // Save to Google Drive
+  // Return Drive file URL
+}
+```
+
+**Fallback Strategy:**
+1. **Priority 1:** Download video from RapidAPI video_url (if available)
+2. **Priority 2:** Create watch.html with post permalink (if video download fails or unavailable)
+
+**Files Modified:**
+- `src/InstagramRapidAPI.js` - Added video download logic
+- `src/InstagramCollector.js` - Integrated video download in processing flow
+
+#### 3. RapidAPI Configuration Update
+
+**API Provider Used:**
+- Host: `instagram-scraper-api2.p.rapidapi.com`
+- This provider offers video URLs in responses, enabling actual video downloads
+
+**Script Properties Required:**
+- `INSTAGRAM_RAPIDAPI_KEY`: Your RapidAPI API key
+- `INSTAGRAM_RAPIDAPI_HOST`: `instagram-scraper-api2.p.rapidapi.com`
+
+**Notes:**
+- Different RapidAPI providers may have different response formats
+- The implementation attempts video download but falls back gracefully if unavailable
+- Video download respects Apps Script's UrlFetch ~50MB limit
+
+**Status:**
+- Implementation complete
+- Ready for end-to-end testing
+
 ## Guidelines for Future Sessions
 
 1. **Before Making Changes:** Always read this CONTEXT.md file first

@@ -284,7 +284,7 @@ function collectTikTokViaResearchAPI(runId, plan, targetCount, onProgress) {
         );
 
         // Normalize and prepare row data
-        const normalizedPost = normalizeTikTokPost(video, artifactResult.driveUrl, artifactResult.memo);
+        const normalizedPost = normalizeTikTokPost(video, artifactResult.refUrl, artifactResult.memo);
         postsToWrite.push(normalizedPost);
 
         // Mark as processed
@@ -423,7 +423,7 @@ function collectTikTokViaDisplayAPI(runId, plan, targetCount, onProgress) {
           video_mention_list: [],
           video_label: '',
           video_tag: '',
-          drive_url: artifactResult.driveUrl,
+          ref_url: artifactResult.refUrl,
           memo: memoPrefix + (artifactResult.memo ? '; ' + artifactResult.memo : '')
         };
 

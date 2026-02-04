@@ -425,3 +425,127 @@ function testInstagramRapidAPI() {
     return { success: false, message: e.message, host: getInstagramRapidAPIHost() };
   }
 }
+
+/**
+ * Download video from URL obtained via RapidAPI
+ * @param {string} videoUrl - Video URL from normalizeRapidAPIPost (video_url field)
+ * @param {string} filename - Desired filename for the downloaded video
+ * @returns {Object} { success: boolean, blob?: Blob, filename?: string, contentType?: string, size?: number, error?: string }
+ */
+function downloadVideoFromRapidAPI(videoUrl, filename) {
+  // Validate inputs
+  if (!videoUrl) {
+    return { success: false, error: 'Video URL is required' };
+  }
+
+  if (!filename) {
+    return { success: false, error: 'Filename is required' };
+  }
+
+  // Validate URL format
+  try {
+    new URL(videoUrl);
+  } catch (e) {
+    return { success: false, error: 'Invalid video URL format' };
+  }
+
+  console.log(`[DEBUG] Downloading video from: ${videoUrl.substring(0, 100)}...`);
+
+  try {
+    // Fetch video content
+    const response = UrlFetchApp.fetch(videoUrl, {
+      method: 'GET',
+      muteHttpExceptions: true,
+      // Follow redirects (Instagram CDN may redirect)
+      followRedirects: true
+    });
+
+    const responseCode = response.getResponseCode();
+
+    // Handle HTTP errors
+    if (responseCode !== 200) {
+      console.error(`[DEBUG] Video download failed with status: ${responseCode}`);
+      return {
+        success: false,
+        error: `HTTP error ${responseCode}: Failed to download video`
+      };
+    }
+
+    // Get blob from response
+    const blob = response.getBlob();
+    const contentType = blob.getContentType();
+    const size = blob.getBytes().length;
+
+    // Check for 50MB limit (Google Apps Script UrlFetchApp limit)
+    const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
+    if (size > MAX_SIZE_BYTES) {
+      return {
+        success: false,
+        error: `Video size (${(size / 1024 / 1024).toFixed(2)}MB) exceeds 50MB limit`
+      };
+    }
+
+    // Validate content type is video
+    if (!contentType || !contentType.startsWith('video/')) {
+      console.log(`[DEBUG] Warning: Content-Type is ${contentType}, expected video/*`);
+      // Continue anyway - some CDNs return incorrect content-type
+    }
+
+    // Set filename on blob
+    const sanitizedFilename = sanitizeFilename(filename);
+    blob.setName(sanitizedFilename);
+
+    console.log(`[DEBUG] Video downloaded successfully: ${sanitizedFilename} (${(size / 1024 / 1024).toFixed(2)}MB)`);
+
+    return {
+      success: true,
+      blob: blob,
+      filename: sanitizedFilename,
+      contentType: contentType,
+      size: size
+    };
+
+  } catch (e) {
+    console.error(`[DEBUG] Video download error: ${e.message}`);
+
+    // Handle specific error types
+    if (e.message.includes('Timeout')) {
+      return { success: false, error: 'Download timeout - video may be too large or server is slow' };
+    }
+
+    if (e.message.includes('DNS') || e.message.includes('connect')) {
+      return { success: false, error: 'Network error - unable to connect to video server' };
+    }
+
+    return { success: false, error: `Download failed: ${e.message}` };
+  }
+}
+
+/**
+ * Sanitize filename for safe storage
+ * @param {string} filename - Original filename
+ * @returns {string} Sanitized filename
+ */
+function sanitizeFilename(filename) {
+  if (!filename) return 'video.mp4';
+
+  // Remove or replace unsafe characters
+  let sanitized = filename
+    .replace(/[<>:"/\\|?*]/g, '_')  // Replace unsafe chars
+    .replace(/\s+/g, '_')           // Replace whitespace
+    .replace(/_+/g, '_')            // Collapse multiple underscores
+    .trim();
+
+  // Ensure it has an extension
+  if (!sanitized.match(/\.(mp4|mov|avi|webm|mkv)$/i)) {
+    sanitized += '.mp4';
+  }
+
+  // Limit length
+  if (sanitized.length > 200) {
+    const ext = sanitized.match(/\.[^.]+$/)?.[0] || '.mp4';
+    sanitized = sanitized.substring(0, 200 - ext.length) + ext;
+  }
+
+  return sanitized;
+}

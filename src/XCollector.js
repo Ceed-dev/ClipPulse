@@ -310,7 +310,7 @@ function processXTweet(runId, state, tweet) {
   const tweetId = String(tweet.id);
   const memoNotes = [];
 
-  // Get tweet URL - this will be used as drive_url for X
+  // Get tweet URL - this will be used as ref_url for X
   // (X posts use direct tweet URL instead of Drive URL)
   const tweetUrl = tweet.url || `https://x.com/i/status/${tweetId}`;
 
@@ -333,7 +333,7 @@ function processXTweet(runId, state, tweet) {
     memoNotes.push('Drive artifact creation failed: ' + e.message);
   }
 
-  // Normalize post data - use tweet URL directly for drive_url
+  // Normalize post data - use tweet URL directly for ref_url
   const normalizedPost = normalizeXPost(tweet, tweetUrl, memoNotes.join('; '));
 
   return {

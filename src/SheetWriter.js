@@ -36,7 +36,7 @@ const TIKTOK_COLUMNS = [
   'video_mention_list',
   'video_label',
   'video_tag',
-  'drive_url',
+  'ref_url',
   'memo'
 ];
 
@@ -71,7 +71,7 @@ const X_COLUMNS = [
   'urls',
   'user_mentions',
   'media',
-  'drive_url',
+  'ref_url',
   'memo'
 ];
 
@@ -101,7 +101,7 @@ const INSTAGRAM_COLUMNS = [
   'boost_ads_list',
   'boost_eligibility_info',
   'copyright_check_information_status',
-  'drive_url',
+  'ref_url',
   'memo'
 ];
 
@@ -283,11 +283,11 @@ function getRowCount(spreadsheetId, platform) {
  * Normalize TikTok API response to match column schema
  * Handles field name differences as noted in spec section 9.3
  * @param {Object} apiResponse - Raw TikTok API response for a video
- * @param {string} driveUrl - The Drive URL for the artifact
+ * @param {string} refUrl - The reference URL for the artifact
  * @param {string} memo - Any memo notes
  * @returns {Object} Normalized post data matching column schema
  */
-function normalizeTikTokPost(apiResponse, driveUrl, memo = '') {
+function normalizeTikTokPost(apiResponse, refUrl, memo = '') {
   return {
     platform_post_id: String(apiResponse.id || apiResponse.video_id || ''),
     create_username: apiResponse.username || apiResponse.author?.username || '',
@@ -313,7 +313,7 @@ function normalizeTikTokPost(apiResponse, driveUrl, memo = '') {
     video_mention_list: apiResponse.video_mention_list || [],
     video_label: apiResponse.video_label || '',
     video_tag: apiResponse.video_tag || '',
-    drive_url: driveUrl,
+    ref_url: refUrl,
     memo: memo
   };
 }
@@ -321,11 +321,11 @@ function normalizeTikTokPost(apiResponse, driveUrl, memo = '') {
 /**
  * Normalize Instagram API response to match column schema
  * @param {Object} apiResponse - Raw Instagram API response for a media
- * @param {string} driveUrl - The Drive URL for the artifact
+ * @param {string} refUrl - The reference URL for the artifact
  * @param {string} memo - Any memo notes
  * @returns {Object} Normalized post data matching column schema
  */
-function normalizeInstagramPost(apiResponse, driveUrl, memo = '') {
+function normalizeInstagramPost(apiResponse, refUrl, memo = '') {
   // Extract shortcode from permalink if not directly available
   // Supports both /p/ (posts) and /reel/ (reels) URL patterns
   let shortcode = apiResponse.shortcode || '';
@@ -359,7 +359,7 @@ function normalizeInstagramPost(apiResponse, driveUrl, memo = '') {
     boost_ads_list: apiResponse.boost_ads_list || [],
     boost_eligibility_info: apiResponse.boost_eligibility_info || '',
     copyright_check_information_status: apiResponse.copyright_check_information?.status || '',
-    drive_url: driveUrl,
+    ref_url: refUrl,
     memo: memo
   };
 }
@@ -384,11 +384,11 @@ function updateRowMemo(spreadsheetId, platform, rowIndex, memo) {
 /**
  * Normalize X (Twitter) API response to match column schema
  * @param {Object} apiResponse - Raw X API response for a tweet
- * @param {string} driveUrl - The Drive URL for the artifact
+ * @param {string} refUrl - The reference URL for the artifact
  * @param {string} memo - Any memo notes
  * @returns {Object} Normalized post data matching column schema
  */
-function normalizeXPost(apiResponse, driveUrl, memo = '') {
+function normalizeXPost(apiResponse, refUrl, memo = '') {
   const author = apiResponse.author || {};
   const entities = apiResponse.entities || {};
 
@@ -419,7 +419,7 @@ function normalizeXPost(apiResponse, driveUrl, memo = '') {
     urls: entities.urls || [],
     user_mentions: entities.user_mentions || [],
     media: apiResponse.media || apiResponse.extendedEntities?.media || [],
-    drive_url: driveUrl,
+    ref_url: refUrl,
     memo: memo
   };
 }

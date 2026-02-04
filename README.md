@@ -50,7 +50,7 @@ The system interprets instructions, decides API parameters, and retrieves data.
 
 - Each post = one row
 - Each metric = one column
-- Include a Drive URL per row that points to the stored "artifact" in Drive
+- Include a reference URL (`ref_url`) per row that points to the stored artifact in Drive or direct post URL
 - Include an additional memo column per row for exceptions/notes
 
 ## 4. Best-practice decisions (final)
@@ -229,16 +229,16 @@ ClipPulse/
 - `watch.html` (fallback "watch artifact" containing link to view the post)
 - `thumbnail.jpg` (optional, if available and feasible)
 
-### 8.3 What "drive_url" means in the sheet
+### 8.3 What "ref_url" means in the sheet
 
-The `drive_url` column contains a reference URL for each post, with platform-specific behavior:
+The `ref_url` column contains a reference URL for each post, with platform-specific behavior:
 
 **Instagram:**
-- If `video.mp4` exists in Drive → `drive_url` = Google Drive URL to `video.mp4`
-- Else → `drive_url` = Google Drive URL to `watch.html`
+- If `video.mp4` exists in Drive → `ref_url` = Google Drive URL to `video.mp4`
+- Else → `ref_url` = Google Drive URL to `watch.html`
 
 **X (Twitter):**
-- `drive_url` = Direct URL to the tweet on X (e.g., `https://x.com/username/status/123456`)
+- `ref_url` = Direct URL to the tweet on X (e.g., `https://x.com/username/status/123456`)
 - Note: Raw JSON and watch.html are still archived in Drive, but the spreadsheet shows the direct tweet URL for easy access
 
 ## 9. Spreadsheet output specification
@@ -286,7 +286,7 @@ These columns appear first in both tabs, in this order:
 | 21 | video_mention_list | string | JSON string array/object |
 | 22 | video_label | string | JSON or string depending on API |
 | 23 | video_tag | string | JSON or string depending on API |
-| 24 | drive_url | string | Drive URL to primary artifact |
+| 24 | ref_url | string | Reference URL to primary artifact (Drive URL or direct post link) |
 | 25 | memo | string | short note on missing fields/errors |
 
 ### 9.4 Instagram tab columns (full order)
@@ -314,7 +314,7 @@ These columns appear first in both tabs, in this order:
 | 19 | boost_ads_list | string | ⚠️ **NOT AVAILABLE** - Own posts only (advertising data) |
 | 20 | boost_eligibility_info | string | ⚠️ **NOT AVAILABLE** - Own posts only (boost eligibility) |
 | 21 | copyright_check_information_status | string | ⚠️ **NOT AVAILABLE** - Own posts only (copyright status) |
-| 22 | drive_url | string | Google Drive URL to video.mp4 or watch.html |
+| 22 | ref_url | string | Reference URL to video.mp4 or watch.html in Google Drive |
 | 23 | memo | string | Notes on missing fields or errors |
 
 > **Note:** Fields marked "⚠️ NOT AVAILABLE" cannot be retrieved for other users' posts due to Instagram API restrictions. These fields will always be empty for hashtag search results. See section 10.3 for details.
@@ -349,10 +349,10 @@ These columns appear first in both tabs, in this order:
 | 24 | urls | string | JSON string array of URLs included in the tweet |
 | 25 | user_mentions | string | JSON string array of users mentioned in the tweet |
 | 26 | media | string | JSON string array of media attachments (images, videos) |
-| 27 | drive_url | string | Direct URL to the tweet on X (e.g., `https://x.com/user/status/123`) |
+| 27 | ref_url | string | Reference URL - Direct URL to the tweet on X (e.g., `https://x.com/user/status/123`) |
 | 28 | memo | string | Notes on missing fields or errors |
 
-> **Note:** For X (Twitter), `drive_url` contains the direct tweet URL for easy access. Raw JSON and watch.html are still archived in Google Drive for backup purposes.
+> **Note:** For X (Twitter), `ref_url` contains the direct tweet URL for easy access. Raw JSON and watch.html are still archived in Google Drive for backup purposes.
 
 ### 9.6 Data encoding rules
 
@@ -477,7 +477,7 @@ When `INSTAGRAM_RAPIDAPI_KEY` is configured, the system uses the RapidAPI "Insta
 | boost_ads_list | ❌ | ❌ | **NOT Available** (own posts only) |
 | boost_eligibility_info | ❌ | ❌ | **NOT Available** (own posts only) |
 | copyright_check_information_status | ❌ | ❌ | **NOT Available** (own posts only) |
-| drive_url | (generated) | (generated) | **Available** |
+| ref_url | (generated) | (generated) | **Available** |
 | memo | (generated) | (generated) | **Available** |
 
 **Fields That Cannot Be Retrieved (Any Method):**
@@ -521,12 +521,51 @@ Because Research API does not guarantee a direct downloadable video file:
 
 - Always create a post folder in Drive
 - Always store `raw.json`
-- If `media_url` is a video URL and downloading is feasible within Apps Script limits:
-  - download and store `video.mp4`
-- Else:
-  - store `watch.html` linking to `post_url` (permalink)
-- If `thumbnail_url` exists and download is feasible:
-  - store `thumbnail.jpg` (optional)
+- For VIDEO content, the system attempts multi-tier download strategy:
+
+**Video Download Flow:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Is video_url available from RapidAPI enrichment?            │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+              ┌───────────┴───────────┐
+              │ Yes                   │ No
+              ▼                       ▼
+┌─────────────────────────┐    ┌─────────────────────────┐
+│ Strategy 1:             │    │ Strategy 2:             │
+│ downloadVideoFromRapid  │    │ saveVideoFile (direct)  │
+│ API(video_url, folder)  │    │ using media_url         │
+└───────────┬─────────────┘    └───────────┬─────────────┘
+            │                              │
+            ▼                              ▼
+┌─────────────────────────┐    ┌─────────────────────────┐
+│ Success?                │    │ Success?                │
+│ → ref_url = video.mp4   │    │ → ref_url = video.mp4   │
+│ Failure?                │    │ Failure?                │
+│ → Try Strategy 2        │    │ → Create watch.html     │
+└─────────────────────────┘    │   ref_url = watch.html  │
+                               └─────────────────────────┘
+```
+
+**downloadVideoFromRapidAPI Function:**
+- Fetches video content using `UrlFetchApp.fetch()`
+- Validates video URL format
+- Enforces 50MB size limit (Apps Script UrlFetchApp limit)
+- Handles CDN redirects automatically
+- Sanitizes filename for safe storage
+- Returns: `{ success, blob, filename, contentType, size }` or `{ success: false, error }`
+
+**Fallback Behavior:**
+- If RapidAPI download fails → Try direct download via `saveVideoFile()`
+- If direct download fails → Create `watch.html` with permalink
+- `watch.html` contains a clickable link to the Instagram post for manual viewing
+
+**Artifacts Created:**
+- `raw.json` - Raw API response (always created)
+- `video.mp4` - Downloaded video file (if download succeeds)
+- `watch.html` - Fallback artifact with permalink (if download fails)
+- `thumbnail.jpg` - Thumbnail image (optional, if available)
 
 ### 11.3 X (Twitter)
 
@@ -535,7 +574,7 @@ Because Research API does not guarantee a direct downloadable video file:
 - Create `watch.html` containing:
   - a clickable link to the tweet URL
   - author username for context
-- `drive_url` points to `watch.html`
+- `ref_url` contains the direct tweet URL for easy access
 
 ## 12. Memo column rules (per-row)
 
@@ -723,7 +762,7 @@ For each post:
 1. Create Drive post folder
 2. Write `raw.json`
 3. Create `video.mp4` OR `watch.html`
-4. Set `drive_url` accordingly
+4. Set `ref_url` accordingly
 5. Append rows in batches (never per-cell loops)
 
 ### Phase 7 — UI + status polling (required)
@@ -753,7 +792,7 @@ A run is considered correct when:
    - X tab
 3. Each collected post occupies exactly one row in the correct tab.
 4. Columns match the specified schema exactly (names + order).
-5. Each row contains a valid `drive_url` pointing to:
+5. Each row contains a valid `ref_url` pointing to:
    - an mp4 file OR a watch artifact in Drive
 6. When metrics are missing/unavailable:
    - fields are blank

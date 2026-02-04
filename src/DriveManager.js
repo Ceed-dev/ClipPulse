@@ -302,17 +302,17 @@ function getFileUrl(file) {
 }
 
 /**
- * Create post artifacts and return the drive_url
+ * Create post artifacts and return the ref_url
  * This handles the logic from specification section 8.3:
- * - If video.mp4 exists → drive_url = URL to video.mp4
- * - Else → drive_url = URL to watch.html
+ * - If video.mp4 exists → ref_url = URL to video.mp4
+ * - Else → ref_url = URL to watch.html
  *
  * @param {string} platformFolderId - The platform folder ID
  * @param {string} postId - The platform post ID
  * @param {Object} postData - The post data
  * @param {Object} rawApiResponse - The raw API response
  * @param {string} platform - 'instagram' or 'tiktok'
- * @returns {Object} Result containing driveUrl and memo notes
+ * @returns {Object} Result containing refUrl and memo notes
  */
 function createPostArtifacts(platformFolderId, postId, postData, rawApiResponse, platform) {
   const postFolder = createPostFolder(platformFolderId, postId);
@@ -321,7 +321,7 @@ function createPostArtifacts(platformFolderId, postId, postData, rawApiResponse,
   // Always save raw.json
   saveRawJson(postFolder, rawApiResponse);
 
-  let driveUrl = null;
+  let refUrl = null;
   let videoFile = null;
 
   if (platform === 'instagram') {
@@ -348,9 +348,9 @@ function createPostArtifacts(platformFolderId, postId, postData, rawApiResponse,
         username: postData.create_username,
         platform: 'Instagram'
       });
-      driveUrl = getFileUrl(watchFile);
+      refUrl = getFileUrl(watchFile);
     } else {
-      driveUrl = getFileUrl(videoFile);
+      refUrl = getFileUrl(videoFile);
     }
 
   } else if (platform === 'tiktok') {
@@ -368,7 +368,7 @@ function createPostArtifacts(platformFolderId, postId, postData, rawApiResponse,
       platform: 'TikTok'
     });
 
-    driveUrl = getFileUrl(watchFile);
+    refUrl = getFileUrl(watchFile);
 
     // Note that video was not downloaded (expected for Research API)
     if (!postData.video_url) {
@@ -377,7 +377,7 @@ function createPostArtifacts(platformFolderId, postId, postData, rawApiResponse,
   }
 
   return {
-    driveUrl: driveUrl,
+    refUrl: refUrl,
     postFolderId: postFolder.getId(),
     postFolderUrl: postFolder.getUrl(),
     memo: memoNotes.join('; ')

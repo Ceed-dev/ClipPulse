@@ -537,6 +537,8 @@ function processHashtagMedia(runId, state, media, hashtag) {
           ...media,
           username: rapidAPIData.username || media.username,
           media_url: rapidAPIData.media_url || media.media_url,
+          // Preserve video_url separately for direct video download attempts
+          video_url: rapidAPIData.video_url || rapidAPIData.media_url || media.video_url,
           thumbnail_url: rapidAPIData.thumbnail_url || media.thumbnail_url,
           shortcode: shortcode,
           media_product_type: rapidAPIData.media_product_type || media.media_product_type,
@@ -588,7 +590,7 @@ function processHashtagMedia(runId, state, media, hashtag) {
   }
 
   // Create Drive artifact
-  let driveUrl = '';
+  let refUrl = '';
   let videoDownloaded = false;
   try {
     const postFolder = createPostFolder(state.instagramFolderId, mediaId);
@@ -596,27 +598,84 @@ function processHashtagMedia(runId, state, media, hashtag) {
     // Save raw JSON (contains all available API data)
     saveRawJson(postFolder, enrichedMedia);
 
-    // Try to download video if media_url is available and it's a video
-    if (enrichedMedia.media_url && enrichedMedia.media_type === 'VIDEO') {
-      const videoFile = saveVideoFile(postFolder, enrichedMedia.media_url);
-      if (videoFile) {
-        driveUrl = getFileUrl(videoFile);
-        videoDownloaded = true;
-        memoNotes.push('video downloaded successfully');
-      }
-    }
+    // Try to download video if it's a video type
+    if (enrichedMedia.media_type === 'VIDEO') {
+      // Get video URL - prefer video_url from RapidAPI, fallback to media_url
+      const videoUrl = enrichedMedia.video_url || enrichedMedia.media_url;
 
-    // Create watch.html if video wasn't downloaded
-    if (!videoDownloaded) {
+      if (videoUrl) {
+        // Strategy 1: Try RapidAPI video download (if configured and function available)
+        if (isInstagramRapidAPIConfigured() && typeof downloadVideoFromRapidAPI === 'function') {
+          try {
+            const filename = `${mediaId}_video`;
+            const downloadResult = downloadVideoFromRapidAPI(videoUrl, postFolder, filename);
+            if (downloadResult && downloadResult.success && downloadResult.file) {
+              refUrl = getFileUrl(downloadResult.file);
+              videoDownloaded = true;
+              memoNotes.push('video downloaded via RapidAPI');
+            }
+          } catch (e) {
+            console.log(`[DEBUG] RapidAPI video download failed for ${mediaId}: ${e.message}`);
+          }
+        }
+
+        // Strategy 2: Fallback to standard saveVideoFile (uses media_url directly)
+        if (!videoDownloaded && enrichedMedia.media_url) {
+          try {
+            const videoFile = saveVideoFile(postFolder, enrichedMedia.media_url);
+            if (videoFile) {
+              refUrl = getFileUrl(videoFile);
+              videoDownloaded = true;
+              memoNotes.push('video downloaded successfully');
+            }
+          } catch (e) {
+            console.log(`[DEBUG] Standard video download failed for ${mediaId}: ${e.message}`);
+          }
+        }
+
+        // Strategy 3: If download failed, store video_url in refUrl for later access
+        if (!videoDownloaded) {
+          // Create watch.html as visual artifact
+          const watchFile = createWatchArtifact(postFolder, {
+            watchUrl: enrichedMedia.permalink || `https://www.instagram.com/p/${shortcode}/`,
+            username: enrichedMedia.username || '',
+            platform: 'Instagram'
+          });
+
+          // Store video_url directly in refUrl if available, otherwise use watch.html URL
+          if (videoUrl) {
+            refUrl = videoUrl;
+            memoNotes.push('video download failed; video_url stored in ref_url');
+          } else {
+            refUrl = getFileUrl(watchFile);
+            memoNotes.push('watch.html stored');
+          }
+        }
+      } else {
+        // No video URL available at all
+        const watchFile = createWatchArtifact(postFolder, {
+          watchUrl: enrichedMedia.permalink || `https://www.instagram.com/p/${shortcode}/`,
+          username: enrichedMedia.username || '',
+          platform: 'Instagram'
+        });
+        refUrl = getFileUrl(watchFile);
+
+        if (!additionalFieldsRetrieved) {
+          memoNotes.push('Instagram API does not provide media_url for hashtag search; watch.html stored');
+        } else {
+          memoNotes.push('no video_url available; watch.html stored');
+        }
+      }
+    } else {
+      // Not a video - create watch.html
       const watchFile = createWatchArtifact(postFolder, {
         watchUrl: enrichedMedia.permalink || `https://www.instagram.com/p/${shortcode}/`,
         username: enrichedMedia.username || '',
         platform: 'Instagram'
       });
-      driveUrl = getFileUrl(watchFile);
+      refUrl = getFileUrl(watchFile);
 
       if (!additionalFieldsRetrieved) {
-        // Note the API limitation - this is the expected case for hashtag search
         memoNotes.push('Instagram API does not provide media_url for hashtag search; watch.html stored');
       } else {
         memoNotes.push('watch.html stored');
@@ -637,7 +696,7 @@ function processHashtagMedia(runId, state, media, hashtag) {
   }
 
   // Normalize post data
-  const normalizedPost = normalizeInstagramPost(enrichedMedia, driveUrl, memoNotes.join('; '));
+  const normalizedPost = normalizeInstagramPost(enrichedMedia, refUrl, memoNotes.join('; '));
 
   return {
     processed: true,
@@ -785,7 +844,7 @@ function processInstagramMedia(runId, state, media, memoPrefix = '') {
       insights: insights ? { data: insights } : null,
       comments: comments ? { data: comments } : null
     },
-    artifactResult.driveUrl,
+    artifactResult.refUrl,
     memoNotes.join('; ')
   );
 

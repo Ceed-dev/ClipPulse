@@ -77,6 +77,28 @@ ClipPulse is a Google Apps Script-based tool that collects social media data fro
 - Uses numeric Instagram media IDs (not shortcodes)
 - Gracefully handles "media not found" responses (returns null, doesn't fail)
 
+**Key Functions:**
+| Function | Description |
+|----------|-------------|
+| `getPostDetailsByMediaId(mediaId)` | Fetch post details using numeric media ID |
+| `enrichPostsWithRapidAPI(posts, hashtag)` | Enrich official API results with RapidAPI data |
+| `downloadVideoFromRapidAPI(videoUrl, filename)` | Download video from RapidAPI-provided URL |
+| `normalizeRapidAPIPost(post, hashtag)` | Normalize API response to standard schema |
+
+**downloadVideoFromRapidAPI:**
+```
+Input: videoUrl (string), filename (string)
+Output: { success: boolean, blob?: Blob, filename?: string, contentType?: string, size?: number, error?: string }
+
+Process:
+1. Validate inputs (URL format, filename)
+2. Fetch video via UrlFetchApp.fetch() with redirect following
+3. Check HTTP status (expect 200)
+4. Validate size ≤ 50MB (Apps Script limit)
+5. Sanitize filename, set blob name
+6. Return blob for Drive storage
+```
+
 ### 5. X Collector (`XCollector.js`)
 - Uses TwitterAPI.io Advanced Search API
 - Builds search queries from plan keywords, hashtags, and user handles
@@ -206,7 +228,7 @@ ClipPulse_<runId>
 19. boost_ads_list
 20. boost_eligibility_info
 21. copyright_check_information_status
-22. drive_url
+22. ref_url
 23. memo
 
 ### X Tab (28 columns)
@@ -236,7 +258,7 @@ ClipPulse_<runId>
 24. urls
 25. user_mentions
 26. media
-27. drive_url
+27. ref_url
 28. memo
 
 ## Key Design Decisions
@@ -252,8 +274,50 @@ ClipPulse_<runId>
 - TikTok collected last (currently disabled)
 
 ### Video/Post Artifact Strategy
-- Instagram: Prefer actual video download when feasible, fallback to `watch.html`. `drive_url` points to Drive file.
-- X: Create `watch.html` for archival, but `drive_url` contains direct tweet URL for easy access.
+- Instagram: Prefer actual video download when feasible, fallback to `watch.html`. `ref_url` points to Drive file.
+- X: Create `watch.html` for archival, but `ref_url` contains direct tweet URL for easy access.
+
+### Instagram Video Download Flow
+```
+┌───────────────────────────────────────────────────────────────┐
+│                    createInstagramArtifact()                   │
+└───────────────────────────┬───────────────────────────────────┘
+                            │
+                ┌───────────▼───────────┐
+                │  Is VIDEO content?    │
+                └───────────┬───────────┘
+                            │ Yes
+            ┌───────────────▼───────────────┐
+            │ RapidAPI configured &         │
+            │ video_url available?          │
+            └───────────────┬───────────────┘
+                   Yes │           │ No
+                       ▼           │
+        ┌──────────────────────┐   │
+        │ downloadVideoFrom    │   │
+        │ RapidAPI(url, folder)│   │
+        └──────────┬───────────┘   │
+                   │               │
+        ┌──────────▼───────────┐   │
+        │ Success?             │   │
+        │ → video.mp4 saved    │   │
+        │ → ref_url = Drive URL│   │
+        └──────────┬───────────┘   │
+                   │ Failure       │
+                   ▼               ▼
+        ┌──────────────────────────────────┐
+        │ saveVideoFile(folder, media_url) │
+        │ (Standard video download)        │
+        └──────────────┬───────────────────┘
+                       │
+        ┌──────────────▼───────────────────┐
+        │ Success?                         │
+        │ → ref_url = video.mp4 Drive URL  │
+        │ Failure?                         │
+        │ → Create watch.html              │
+        │ → ref_url = watch.html Drive URL │
+        └──────────────────────────────────┘
+```
 
 ### Batch Processing
 - Process 10-20 posts per batch
