@@ -1187,3 +1187,26 @@ function analyzeColumnGaps(spreadsheetId, rowCount = 50) {
     allWarnings: allWarnings
   };
 }
+
+/**
+ * Check if RapidAPI key is configured for Instagram video download
+ * Run this in Apps Script editor to verify setup
+ */
+function checkRapidAPIKey() {
+  const key = PropertiesService.getScriptProperties().getProperty('INSTAGRAM_RAPIDAPI_KEY');
+  const exists = !!key;
+  const masked = exists ? key.substring(0, 8) + '...' + key.substring(key.length - 4) : 'NOT SET';
+
+  console.log('=== RapidAPI Configuration Check ===');
+  console.log('INSTAGRAM_RAPIDAPI_KEY exists:', exists ? 'YES ✓' : 'NO ✗');
+  console.log('Key (masked):', masked);
+
+  if (!exists) {
+    console.log('\nTo enable Instagram video download:');
+    console.log('1. Get API key from https://rapidapi.com/arraybobo/api/instagram-scraper-api2');
+    console.log('2. In Apps Script: File > Project settings > Script properties');
+    console.log('3. Add property: INSTAGRAM_RAPIDAPI_KEY = your_api_key');
+  }
+
+  return { exists, masked };
+}
