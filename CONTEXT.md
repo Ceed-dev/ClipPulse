@@ -850,3 +850,62 @@ function downloadVideoFromRapidAPI(videoUrl, folderId, filename) {
 9. **Debug Logging:** Added console.log statements marked with `[DEBUG]` for troubleshooting
 10. **Instagram RapidAPI:** Optional; add `INSTAGRAM_RAPIDAPI_KEY` and `INSTAGRAM_RAPIDAPI_HOST` to enable data enrichment for hashtag search results. Uses `/media?id=...` endpoint with numeric media IDs.
 11. **API Mode:** Add `CLIPPULSE_API_SECRET` to Script Properties to enable API authentication. API endpoints: `?action=start` and `?action=status`.
+
+### 2026-02-04 - Refactoring and Bug Fixes
+
+**Participants:** Human + Claude Opus 4.5 (multi-agent shogun system)
+
+**Context:**
+Major refactoring session to rename `drive_url` to `ref_url` and add Instagram video download functionality via RapidAPI.
+
+**Changes Made:**
+
+1. **Column Rename: drive_url → ref_url**
+   - Renamed across all files (11 files total)
+   - SheetWriter.js: Column arrays and normalize functions
+   - InstagramCollector.js, XCollector.js, DriveManager.js, Code.js, Mocks.js, TikTokCollector.js
+   - ARCHITECTURE.md, README.md: Documentation updates
+   - Commit: 51b16e1
+
+2. **Instagram Video Download via RapidAPI**
+   - Added `downloadVideoFromRapidAPI(videoUrl, postFolder, filename)` function
+   - 3-tier download strategy: RapidAPI → direct media_url → watch.html fallback
+   - 50MB size limit check
+   - CDN redirect handling with `followRedirects: true`
+
+3. **Critical Bug Fix (CR-001, CR-002)**
+   - **Issue:** `downloadVideoFromRapidAPI` function had signature and return value mismatch
+   - **CR-001:** Function was missing `postFolder` parameter
+   - **CR-002:** Function returned `blob` but caller expected `file`
+   - **Fix:** Added `postFolder` parameter, save blob to Drive, return `{ file: File, ... }`
+   - Commit: 154bdc3
+
+4. **E2E Test Functions Added (Code.js +272 lines)**
+   - `testInstagramColumnCompleteness()`: Analyzes Instagram column fill rates
+   - `testXColumnCompleteness()`: Analyzes X column fill rates
+   - `analyzeColumnGaps()`: Combined analysis for both platforms
+
+5. **Column Coverage Analysis**
+   - **Instagram (23 columns):**
+     - High risk (RapidAPI required): create_username, media_url, thumbnail_url
+     - API unavailable: edges_collaborators, boost_*, copyright_* (Instagram API limitation)
+   - **X (28 columns):**
+     - All columns available via TwitterAPI.io
+     - Medium risk (optional): source, view_count, in_reply_to_id
+
+**Git Commits:**
+- 51b16e1: refactor: Rename drive_url to ref_url and add Instagram video download
+- 154bdc3: fix: Fix downloadVideoFromRapidAPI function signature and return value
+
+**Files Modified:**
+- src/InstagramRapidAPI.js - Video download function, bug fix
+- src/InstagramCollector.js - Video download integration
+- src/SheetWriter.js - Column rename
+- src/Code.js - E2E test functions
+- src/DriveManager.js, XCollector.js, Mocks.js, TikTokCollector.js - Column rename
+- ARCHITECTURE.md, README.md, CONTEXT.md - Documentation
+
+**Next Steps:**
+- Run E2E tests via Apps Script to verify column completeness
+- Monitor actual data collection results
+- Consider alternative APIs for unavailable Instagram fields if needed
