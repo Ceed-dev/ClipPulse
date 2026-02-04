@@ -13,10 +13,16 @@
 
 /**
  * Start a new collection run
+ * This is the shared business logic used by both UI and API modes.
+ *
  * @param {string} instruction - The user's natural language instruction
+ * @param {Object} [options] - Optional parameters (for API mode)
+ * @param {string} [options.externalRunId] - External run ID from n8n
+ * @param {string} [options.targetFolderId] - Target folder ID for output
+ * @param {string} [options.source] - Source of the run ('ui' or 'api')
  * @returns {Object} Run info including runId and spreadsheetUrl
  */
-function startRun(instruction) {
+function startRun(instruction, options = {}) {
   // Skip validation in mock mode
   if (!isMockMode()) {
     const configValidation = validateConfig();
@@ -43,12 +49,16 @@ function startRun(instruction) {
     }
   }
 
-  // Generate run ID
-  const runId = generateRunId();
-  console.log(`Starting run: ${runId}`);
+  // Generate run ID (use external_run_id if provided, otherwise generate)
+  const runId = options.externalRunId || generateRunId();
+  console.log(`Starting run: ${runId} (source: ${options.source || 'ui'})`);
 
-  // Create initial run state
-  const state = createRunState(runId, instruction);
+  // Create initial run state with options
+  const state = createRunState(runId, instruction, {
+    externalRunId: options.externalRunId,
+    targetFolderId: options.targetFolderId,
+    source: options.source || 'ui'
+  });
   saveRunState(state);
 
   try {
@@ -59,9 +69,9 @@ function startRun(instruction) {
     const plan = parseInstructionToPlan(instruction);
     setRunPlan(runId, plan);
 
-    // Create Drive folder structure
+    // Create Drive folder structure (with optional target folder)
     updateRunStatus(runId, RUN_STATUS.PLANNING, 'Creating folder structure...');
-    const folders = createRunFolderStructure(runId);
+    const folders = createRunFolderStructure(runId, options.targetFolderId);
 
     // Create spreadsheet
     updateRunStatus(runId, RUN_STATUS.PLANNING, 'Creating spreadsheet...');
@@ -85,7 +95,9 @@ function startRun(instruction) {
 
     return {
       runId: runId,
+      spreadsheetId: spreadsheet.spreadsheetId,
       spreadsheetUrl: spreadsheet.spreadsheetUrl,
+      runFolderId: folders.runFolderId,
       status: RUN_STATUS.PLANNING,
       plan: plan
     };

@@ -15,6 +15,9 @@ const CONFIG_KEYS = {
   OPENAI_API_KEY: 'OPENAI_API_KEY',
   OPENAI_MODEL: 'OPENAI_MODEL',
 
+  // API authentication
+  CLIPPULSE_API_SECRET: 'CLIPPULSE_API_SECRET',
+
   // X (Twitter) API - TwitterAPI.io
   X_API_KEY: 'X_API_KEY',
 

@@ -694,6 +694,75 @@ Continued work on documentation updates and fixing the `drive_url` column behavi
 - `src/XCollector.js` - Changed drive_url to direct tweet URL
 - `CONTEXT.md` - This session log
 
+### 2026-02-04 - API Mode Implementation (n8n Integration)
+
+**Participants:** Human + Claude Opus 4.5
+
+**Context:**
+Human requested adding HTTP API endpoints to ClipPulse for integration with n8n workflow automation. The goal is to allow n8n to trigger data collection runs and retrieve results programmatically.
+
+**Requirements:**
+1. Add API mode alongside existing UI (UI must remain functional)
+2. Implement `start` endpoint to begin collection runs
+3. Implement `status` endpoint to check run progress
+4. Support external run IDs and target folder IDs for n8n integration
+5. Add shared secret authentication for API calls
+6. Share business logic between UI and API (no duplicate implementation)
+
+**Files Created:**
+- `src/ApiHandler.js` - New module for API request handling
+  - `validateApiSecret()` - Secret-based authentication
+  - `handleApiStart()` - Start run endpoint handler
+  - `handleApiStatus()` - Status check endpoint handler
+  - `routeApiRequest()` - Request routing logic
+
+**Files Modified:**
+
+1. **src/Config.js**
+   - Added `CLIPPULSE_API_SECRET` config key for API authentication
+
+2. **src/Code.js**
+   - Modified `doGet()` to route to API or UI based on `action` parameter
+   - Added `doPost()` handler for POST API requests
+
+3. **src/StateStore.js**
+   - Added `API_STATUS` constants (queued, running, completed, failed)
+   - Added `mapToApiStatus()` function to convert internal status to API status
+   - Modified `createRunState()` to accept options (externalRunId, targetFolderId, source)
+   - Added `getApiStatusSummary()` for API-formatted status response
+
+4. **src/DriveManager.js**
+   - Modified `createRunFolderStructure()` to accept optional `targetFolderId`
+   - When `targetFolderId` is provided, creates folders inside that folder instead of default structure
+
+5. **src/Orchestrator.js**
+   - Modified `startRun()` to accept options object
+   - Passes `targetFolderId` to `createRunFolderStructure()`
+   - Returns `spreadsheetId` and `runFolderId` in response
+
+6. **README.md** (v3.0)
+   - Added Section 17: API Integration (n8n / External Systems)
+   - Documented all API endpoints with request/response examples
+   - Added n8n integration examples and curl commands
+   - Updated version to 3.0, date to 2026-02-04
+
+**API Endpoints:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/exec?action=start` | POST/GET | Start a new collection run |
+| `/exec?action=status&run_id=xxx` | GET | Get run status |
+
+**Key Design Decisions:**
+- Secret is passed as query parameter (`?secret=xxx`) since Apps Script doesn't expose headers in doGet/doPost
+- External run ID is used as the ClipPulse run ID to maintain consistency with n8n
+- Target folder approach: n8n creates run folder, ClipPulse creates `clippulse_{run_id}/` inside it
+- UI mode continues to work without secret or target folder (backward compatible)
+
+**Status:**
+- Implementation complete
+- Ready for testing and deployment
+
 ## Guidelines for Future Sessions
 
 1. **Before Making Changes:** Always read this CONTEXT.md file first
@@ -706,3 +775,4 @@ Continued work on documentation updates and fixing the `drive_url` column behavi
 8. **OAuth for Instagram:** User must complete OAuth flow; token stored in UserProperties (not ScriptProperties)
 9. **Debug Logging:** Added console.log statements marked with `[DEBUG]` for troubleshooting
 10. **Instagram RapidAPI:** Optional; add `INSTAGRAM_RAPIDAPI_KEY` and `INSTAGRAM_RAPIDAPI_HOST` to enable data enrichment for hashtag search results. Uses `/media?id=...` endpoint with numeric media IDs.
+11. **API Mode:** Add `CLIPPULSE_API_SECRET` to Script Properties to enable API authentication. API endpoints: `?action=start` and `?action=status`.

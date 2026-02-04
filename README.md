@@ -1,7 +1,7 @@
 # ClipPulse — Specification (Short-Video Trend Collector)
 
-**Document version:** 2.0<br>
-**Last updated:** 2026-02-02<br>
+**Document version:** 3.0<br>
+**Last updated:** 2026-02-04<br>
 **Status:** Final (implementation-ready)
 
 ## 1. Overview
@@ -760,7 +760,184 @@ A run is considered correct when:
    - memo contains a short explanation
 7. The system completes or fails cleanly without exceeding Apps Script runtime limits (by using batching + continuation).
 
-## 17. References (official docs)
+## 17. API Integration (n8n / External Systems)
+
+ClipPulse provides an HTTP API alongside the HTML UI for integration with workflow automation tools like n8n.
+
+### 17.1 API Overview
+
+The Web App URL serves both UI and API requests:
+- **No `action` parameter**: Returns HTML UI (existing behavior)
+- **`action=start`**: Start a new collection run (API)
+- **`action=status`**: Get run status (API)
+
+API responses are always JSON with `Content-Type: application/json`.
+
+### 17.2 Authentication
+
+API requests require a shared secret for authentication.
+
+**Setup:**
+1. Go to Apps Script Editor → Project Settings → Script Properties
+2. Add property: `CLIPPULSE_API_SECRET` = `<your-secret-value>`
+
+**Usage:**
+Include the secret as a query parameter: `?secret=<your-secret>`
+
+> **Note:** UI mode (no `action` parameter) does not require the secret.
+
+### 17.3 API Endpoints
+
+#### Start Run (POST or GET)
+
+**Endpoint:** `/exec?action=start`
+
+**Request (JSON body for POST, or query params for GET):**
+```json
+{
+  "instruction": "Find 50 posts about skincare from Instagram and X",
+  "external_run_id": "n8n_run_abc123",
+  "target_folder_id": "1abc...xyz",
+  "dry_run": false,
+  "debug": false
+}
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `instruction` | Yes | Natural language collection instruction |
+| `external_run_id` | Yes | Your workflow's run ID (used as ClipPulse run ID) |
+| `target_folder_id` | Yes | Google Drive folder ID where outputs will be created |
+| `dry_run` | No | If `true`, creates structure without actual collection (not yet implemented) |
+| `debug` | No | If `true`, includes additional debug info in response |
+
+**Response:**
+```json
+{
+  "ok": true,
+  "api_version": "v1",
+  "run_id": "n8n_run_abc123",
+  "internal_run_id": "20260204_123456_a1b2c3d4",
+  "status": "queued",
+  "spreadsheet_id": "1abc...xyz",
+  "spreadsheet_url": "https://docs.google.com/spreadsheets/d/...",
+  "created_folder_id": "1def...uvw",
+  "message": "Run started successfully"
+}
+```
+
+**Error Response:**
+```json
+{
+  "ok": false,
+  "api_version": "v1",
+  "run_id": "n8n_run_abc123",
+  "error": {
+    "code": "START_FAILED",
+    "message": "Error description"
+  }
+}
+```
+
+#### Get Status (GET)
+
+**Endpoint:** `/exec?action=status&run_id=<run_id>`
+
+**Parameters:**
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `run_id` | Yes | The run ID (external_run_id used in start) |
+| `secret` | Yes* | API secret (*if configured) |
+
+**Response:**
+```json
+{
+  "ok": true,
+  "api_version": "v1",
+  "run_id": "n8n_run_abc123",
+  "internal_run_id": "20260204_123456_a1b2c3d4",
+  "status": "running",
+  "internal_status": "RUNNING_INSTAGRAM",
+  "spreadsheet_id": "1abc...xyz",
+  "spreadsheet_url": "https://docs.google.com/spreadsheets/d/...",
+  "created_folder_id": "1def...uvw",
+  "updated_at": "2026-02-04T12:34:56.000Z",
+  "created_at": "2026-02-04T12:30:00.000Z",
+  "metrics": {
+    "instagram_rows": 15,
+    "instagram_target": 30,
+    "x_rows": 0,
+    "x_target": 30
+  },
+  "message": "Collecting Instagram posts...",
+  "error": null
+}
+```
+
+**Status Values:**
+| API Status | Internal Status(es) | Description |
+|------------|---------------------|-------------|
+| `queued` | CREATED, PLANNING | Run is queued or planning |
+| `running` | RUNNING_INSTAGRAM, RUNNING_X, RUNNING_TIKTOK, FINALIZING | Collection in progress |
+| `completed` | COMPLETED | Run finished successfully |
+| `failed` | FAILED | Run encountered an error |
+
+### 17.4 n8n Integration Example
+
+**Workflow Setup:**
+1. Create a run folder in Google Drive (e.g., `AI-Influencer/runs/{run_id}/`)
+2. Call ClipPulse API with the folder ID
+3. Poll status until `completed` or `failed`
+4. Use the `spreadsheet_url` in your manifest
+
+**HTTP Request Node (Start):**
+```
+Method: POST
+URL: https://script.google.com/macros/s/.../exec?action=start&secret=YOUR_SECRET
+Body (JSON):
+{
+  "instruction": "{{ $json.research_instruction }}",
+  "external_run_id": "{{ $json.run_id }}",
+  "target_folder_id": "{{ $json.run_folder_id }}"
+}
+```
+
+**HTTP Request Node (Poll Status):**
+```
+Method: GET
+URL: https://script.google.com/macros/s/.../exec?action=status&run_id={{ $json.run_id }}&secret=YOUR_SECRET
+```
+
+### 17.5 curl Examples
+
+**Start a run:**
+```bash
+curl -X POST \
+  'https://script.google.com/macros/s/.../exec?action=start&secret=YOUR_SECRET' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "instruction": "Find 30 posts about AI trends from Instagram",
+    "external_run_id": "test_run_001",
+    "target_folder_id": "1abc123def456"
+  }'
+```
+
+**Check status:**
+```bash
+curl 'https://script.google.com/macros/s/.../exec?action=status&run_id=test_run_001&secret=YOUR_SECRET'
+```
+
+### 17.6 Storage Behavior
+
+**API Mode (with `target_folder_id`):**
+- Creates `clippulse_{run_id}/` folder inside the target folder
+- Subfolders: `spreadsheet/`, `instagram/`, `x/`, `tiktok/`
+- Spreadsheet is placed in the `spreadsheet/` subfolder
+
+**UI Mode (without `target_folder_id`):**
+- Uses default ClipPulse folder structure: `ClipPulse/runs/YYYY/MM/{run_id}/`
+
+## 18. References (official docs)
 
 - [TwitterAPI.io — API Reference](https://docs.twitterapi.io/api-reference/endpoint/tweet_advanced_search)
 - [TikTok Research API — Getting Started](https://developers.tiktok.com/doc/research-api-get-started)

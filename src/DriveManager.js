@@ -97,22 +97,39 @@ function getOrCreateSubfolder(parent, name) {
 /**
  * Create the folder structure for a new run
  * @param {string} runId - The run ID (format: YYYYMMDD_HHMMSS_<hash>)
+ * @param {string} [targetFolderId] - Optional target folder ID (for API mode / n8n integration)
  * @returns {Object} Object containing folder IDs
  */
-function createRunFolderStructure(runId) {
-  const root = getRootFolder();
-  const runsFolder = getOrCreateSubfolder(root, 'runs');
+function createRunFolderStructure(runId, targetFolderId = null) {
+  let runFolder;
 
-  // Parse date from run ID
-  const year = runId.substring(0, 4);
-  const month = runId.substring(4, 6);
+  if (targetFolderId) {
+    // API mode: Create subfolders directly in the target folder (e.g., n8n run folder)
+    try {
+      const targetFolder = DriveApp.getFolderById(targetFolderId);
+      // Create a ClipPulse subfolder within the target folder
+      runFolder = targetFolder.createFolder(`clippulse_${runId}`);
+      console.log(`Created run folder in target folder: ${targetFolderId}`);
+    } catch (e) {
+      console.error(`Failed to access target folder ${targetFolderId}:`, e);
+      throw new Error(`Target folder not accessible: ${targetFolderId}`);
+    }
+  } else {
+    // UI mode: Use default ClipPulse folder structure
+    const root = getRootFolder();
+    const runsFolder = getOrCreateSubfolder(root, 'runs');
 
-  // Create year/month folders
-  const yearFolder = getOrCreateSubfolder(runsFolder, year);
-  const monthFolder = getOrCreateSubfolder(yearFolder, month);
+    // Parse date from run ID
+    const year = runId.substring(0, 4);
+    const month = runId.substring(4, 6);
 
-  // Create run folder
-  const runFolder = monthFolder.createFolder(runId);
+    // Create year/month folders
+    const yearFolder = getOrCreateSubfolder(runsFolder, year);
+    const monthFolder = getOrCreateSubfolder(yearFolder, month);
+
+    // Create run folder
+    runFolder = monthFolder.createFolder(runId);
+  }
 
   // Create subfolders for the run
   const spreadsheetFolder = runFolder.createFolder('spreadsheet');

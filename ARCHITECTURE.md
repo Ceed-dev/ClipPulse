@@ -308,3 +308,58 @@ The X collector supports rich query syntax:
 Query type options:
 - `Latest` - Most recent tweets matching query
 - `Top` - Most popular/engaging tweets matching query
+
+## API Mode (n8n Integration)
+
+ClipPulse supports both UI and API modes:
+
+### Request Routing
+
+```
+GET/POST /exec
+    │
+    ├─ action=start → API: Start new run
+    ├─ action=status → API: Get run status
+    └─ (no action) → UI: Return HTML page
+```
+
+### API Handler (`ApiHandler.js`)
+
+New component that handles HTTP API requests:
+- `validateApiSecret()` - Secret-based authentication
+- `handleApiStart()` - Start a collection run
+- `handleApiStatus()` - Get run status
+- `routeApiRequest()` - Route based on action parameter
+
+### API Request Flow
+
+```
+n8n Workflow
+    │
+    ▼
+POST /exec?action=start&secret=xxx
+    │
+    ├─ Validate secret
+    ├─ Parse JSON body (instruction, external_run_id, target_folder_id)
+    ├─ Call startRun() [shared business logic]
+    └─ Return JSON response
+```
+
+### Folder Structure (API Mode)
+
+When `target_folder_id` is provided (API mode):
+
+```
+{target_folder_id}/          (e.g., n8n run folder)
+└── clippulse_{run_id}/
+    ├── spreadsheet/
+    │   └── ClipPulse_{run_id}.gsheet
+    ├── instagram/
+    ├── x/
+    └── tiktok/
+```
+
+### Configuration
+
+Required for API mode:
+- `CLIPPULSE_API_SECRET` - Shared secret for authentication

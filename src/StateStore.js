@@ -42,14 +42,55 @@ function getRunStateKey(runId) {
 }
 
 /**
+ * API status values for external consumers (n8n)
+ */
+const API_STATUS = {
+  QUEUED: 'queued',
+  RUNNING: 'running',
+  COMPLETED: 'completed',
+  FAILED: 'failed'
+};
+
+/**
+ * Map internal RUN_STATUS to API_STATUS
+ * @param {string} runStatus - Internal run status
+ * @returns {string} API status
+ */
+function mapToApiStatus(runStatus) {
+  switch (runStatus) {
+    case RUN_STATUS.CREATED:
+    case RUN_STATUS.PLANNING:
+      return API_STATUS.QUEUED;
+    case RUN_STATUS.RUNNING_INSTAGRAM:
+    case RUN_STATUS.RUNNING_X:
+    case RUN_STATUS.RUNNING_TIKTOK:
+    case RUN_STATUS.FINALIZING:
+      return API_STATUS.RUNNING;
+    case RUN_STATUS.COMPLETED:
+      return API_STATUS.COMPLETED;
+    case RUN_STATUS.FAILED:
+      return API_STATUS.FAILED;
+    default:
+      return API_STATUS.QUEUED;
+  }
+}
+
+/**
  * Create initial run state
  * @param {string} runId - The run ID
  * @param {string} instruction - The user's instruction
+ * @param {Object} [options] - Optional parameters
+ * @param {string} [options.externalRunId] - External run ID from n8n
+ * @param {string} [options.targetFolderId] - Target folder ID for output
+ * @param {string} [options.source] - Source of the run ('ui' or 'api')
  * @returns {Object} The initial run state
  */
-function createRunState(runId, instruction) {
+function createRunState(runId, instruction, options = {}) {
   return {
     runId: runId,
+    externalRunId: options.externalRunId || null,
+    targetFolderId: options.targetFolderId || null,
+    source: options.source || 'ui',
     instruction: instruction,
     status: RUN_STATUS.CREATED,
     createdAt: new Date().toISOString(),
@@ -372,6 +413,41 @@ function getRunSummary(runId) {
     lastError: state.lastError,
     createdAt: state.createdAt,
     updatedAt: state.updatedAt
+  };
+}
+
+/**
+ * Get API-formatted summary of run state
+ * @param {string} runId - The run ID
+ * @returns {Object|null} API summary or null if not found
+ */
+function getApiStatusSummary(runId) {
+  const state = loadRunState(runId);
+  if (!state) {
+    return null;
+  }
+
+  return {
+    run_id: state.externalRunId || state.runId,
+    internal_run_id: state.runId,
+    status: mapToApiStatus(state.status),
+    internal_status: state.status,
+    spreadsheet_id: state.spreadsheetId || null,
+    spreadsheet_url: state.spreadsheetUrl || null,
+    created_folder_id: state.runFolderId || null,
+    updated_at: state.updatedAt,
+    created_at: state.createdAt,
+    metrics: {
+      instagram_rows: state.instagramProgress?.collected || 0,
+      instagram_target: state.instagramProgress?.target || 0,
+      x_rows: state.xProgress?.collected || 0,
+      x_target: state.xProgress?.target || 0
+    },
+    message: state.lastMessage || null,
+    error: state.lastError ? {
+      code: 'RUN_ERROR',
+      message: state.lastError
+    } : null
   };
 }
 

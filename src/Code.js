@@ -9,14 +9,45 @@
  */
 
 /**
- * Web App entry point - serves the HTML UI
+ * Web App entry point - serves the HTML UI or handles API requests
+ * Routes based on 'action' parameter:
+ * - No action: Return HTML UI (existing behavior)
+ * - action=start: API start endpoint
+ * - action=status: API status endpoint
+ *
  * @param {Object} e - Event object
- * @returns {GoogleAppsScript.HTML.HtmlOutput} The HTML page
+ * @returns {GoogleAppsScript.HTML.HtmlOutput|GoogleAppsScript.Content.TextOutput} HTML or JSON response
  */
 function doGet(e) {
+  // Try API routing first
+  const apiResponse = routeApiRequest(e);
+  if (apiResponse) {
+    return apiResponse;
+  }
+
+  // No action parameter = UI mode, return HTML
   return HtmlService.createHtmlOutputFromFile('UI')
     .setTitle('ClipPulse - Short-Video Trend Collector')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * Handle POST requests for API
+ * @param {Object} e - Event object
+ * @returns {GoogleAppsScript.Content.TextOutput} JSON response
+ */
+function doPost(e) {
+  // All POST requests go through API routing
+  const apiResponse = routeApiRequest(e);
+  if (apiResponse) {
+    return apiResponse;
+  }
+
+  // If no action, return error
+  return createJsonResponse(buildApiResponse(false, {}, {
+    code: 'MISSING_ACTION',
+    message: 'POST requests require an action parameter (e.g., ?action=start)'
+  }));
 }
 
 /**
