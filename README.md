@@ -454,6 +454,8 @@ The system attempts to retrieve additional details via `getMediaDetails()` but t
 
 When `INSTAGRAM_RAPIDAPI_KEY` is configured, the system uses the RapidAPI "Instagram API – Fast & Reliable Data Scraper" to enrich hashtag search results with additional fields:
 
+**📸 Instagram Data Field Availability**
+
 | Field | Official API (Hashtag) | With RapidAPI | Status |
 |-------|------------------------|---------------|--------|
 | platform_post_id | ✅ | ✅ | **Available** |
@@ -492,6 +494,43 @@ The following 6 fields are **impossible to retrieve** for other users' posts, re
 6. **edges_comments** - Detailed comment data requires separate API calls; not included in current implementation but technically possible with additional scraping APIs (e.g., [Apify Instagram Comment Scraper](https://apify.com/apify/instagram-comment-scraper))
 
 These fields will be left blank in the spreadsheet, with an explanation in the memo column.
+
+**🐦 X (Twitter) Data Field Availability**
+
+All 28 columns are available via TwitterAPI.io Advanced Search API:
+
+| Field | API Field | Risk | Notes |
+|-------|-----------|------|-------|
+| platform_post_id | id | ✅ Low | Always available |
+| create_username | author.userName | ✅ Low | Always available |
+| posted_at | createdAt | ✅ Low | Always available |
+| text | text | ✅ Low | Always available |
+| post_url | url | ✅ Low | Generated from ID if not provided |
+| source | source | ⚠️ Medium | May be empty (posting app name) |
+| retweet_count | retweetCount | ✅ Low | 0 if unavailable |
+| reply_count | replyCount | ✅ Low | 0 if unavailable |
+| like_count | likeCount | ✅ Low | 0 if unavailable |
+| quote_count | quoteCount | ✅ Low | 0 if unavailable |
+| view_count | viewCount | ⚠️ Medium | May be empty (private accounts/API limits) |
+| lang | lang | ✅ Low | Empty if detection fails |
+| is_reply | isReply | ✅ Low | false if unavailable |
+| in_reply_to_id | inReplyToId | ⚠️ Medium | Empty for non-replies (expected) |
+| conversation_id | conversationId | ✅ Low | May be empty |
+| author_id | author.id | ✅ Low | Always available |
+| author_name | author.userName | ✅ Low | Same as create_username |
+| author_display_name | author.name | ✅ Low | May be empty |
+| author_followers | author.followers | ✅ Low | Empty for private profiles |
+| author_following | author.following | ✅ Low | Empty for private profiles |
+| author_is_blue_verified | author.isBlueVerified | ✅ Low | false if unavailable |
+| author_created_at | author.createdAt | ✅ Low | May be empty |
+| hashtags | entities.hashtags | ✅ Low | Empty array if none |
+| urls | entities.urls | ✅ Low | Empty array if none |
+| user_mentions | entities.user_mentions | ✅ Low | Empty array if none |
+| media | media / extendedEntities.media | ✅ Low | Empty array if none |
+| ref_url | url / generated | ✅ Low | Generated from ID |
+| memo | (system generated) | ✅ Low | Error info, processing notes |
+
+**Summary:** 25 Low Risk, 3 Medium Risk, 0 High Risk. All fields retrievable via TwitterAPI.io.
 
 **If insufficient results:**
 - try multiple hashtags
