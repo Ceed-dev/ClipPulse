@@ -915,3 +915,275 @@ function testOwnAccountWithVideoDownload() {
     return { success: false, error: e.message };
   }
 }
+
+// ============================================================
+// E2E Column Completeness Test Functions
+// ============================================================
+
+/**
+ * Instagram全カラムの取得テスト
+ * 最新の取得データで各カラムの充足率を確認
+ * @param {string} [spreadsheetId] - Optional spreadsheet ID. If not provided, uses most recent run.
+ * @param {number} [rowCount=50] - Number of rows to analyze
+ * @returns {Object} Analysis result with column fill rates
+ */
+function testInstagramColumnCompleteness(spreadsheetId, rowCount = 50) {
+  console.log('=== Instagram Column Completeness Test ===\n');
+
+  try {
+    // Get spreadsheet
+    let ss;
+    if (spreadsheetId) {
+      ss = SpreadsheetApp.openById(spreadsheetId);
+    } else {
+      // Find most recent ClipPulse spreadsheet
+      const files = DriveApp.searchFiles('title contains "ClipPulse_" and mimeType = "application/vnd.google-apps.spreadsheet"');
+      if (!files.hasNext()) {
+        console.log('ERROR: No ClipPulse spreadsheet found');
+        return { success: false, error: 'No spreadsheet found' };
+      }
+      // Get the most recent one
+      let mostRecent = files.next();
+      while (files.hasNext()) {
+        const file = files.next();
+        if (file.getDateCreated() > mostRecent.getDateCreated()) {
+          mostRecent = file;
+        }
+      }
+      ss = SpreadsheetApp.openById(mostRecent.getId());
+      console.log('Using spreadsheet:', mostRecent.getName());
+    }
+
+    const sheet = ss.getSheetByName('Instagram');
+    if (!sheet) {
+      console.log('ERROR: Instagram sheet not found');
+      return { success: false, error: 'Instagram sheet not found' };
+    }
+
+    // Get data
+    const lastRow = sheet.getLastRow();
+    const dataRows = Math.min(rowCount, lastRow - 1);
+    if (dataRows <= 0) {
+      console.log('No data rows found');
+      return { success: false, error: 'No data rows' };
+    }
+
+    console.log(`Analyzing ${dataRows} rows...\n`);
+
+    const headers = sheet.getRange(1, 1, 1, INSTAGRAM_COLUMNS.length).getValues()[0];
+    const data = sheet.getRange(2, 1, dataRows, INSTAGRAM_COLUMNS.length).getValues();
+
+    // Calculate fill rate for each column
+    const results = {};
+    const warnings = [];
+
+    headers.forEach((header, colIndex) => {
+      let filledCount = 0;
+      data.forEach(row => {
+        const value = row[colIndex];
+        if (value !== '' && value !== null && value !== undefined) {
+          filledCount++;
+        }
+      });
+
+      const fillRate = (filledCount / dataRows * 100).toFixed(1);
+      results[header] = {
+        filled: filledCount,
+        total: dataRows,
+        rate: parseFloat(fillRate)
+      };
+
+      // Log result
+      const status = fillRate >= 80 ? '✓' : (fillRate >= 50 ? '△' : '✗');
+      console.log(`${status} ${header}: ${fillRate}% (${filledCount}/${dataRows})`);
+
+      // Track warnings for low fill rate
+      if (parseFloat(fillRate) < 50) {
+        warnings.push({ column: header, rate: parseFloat(fillRate) });
+      }
+    });
+
+    // Summary
+    console.log('\n--- Summary ---');
+    if (warnings.length > 0) {
+      console.log('⚠️ Low fill rate columns (<50%):');
+      warnings.forEach(w => console.log(`  - ${w.column}: ${w.rate}%`));
+    } else {
+      console.log('✓ All columns have acceptable fill rates');
+    }
+
+    return {
+      success: true,
+      platform: 'instagram',
+      rowsAnalyzed: dataRows,
+      columns: results,
+      warnings: warnings
+    };
+
+  } catch (e) {
+    console.log('Error:', e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * X全カラムの取得テスト
+ * 最新の取得データで各カラムの充足率を確認
+ * @param {string} [spreadsheetId] - Optional spreadsheet ID. If not provided, uses most recent run.
+ * @param {number} [rowCount=50] - Number of rows to analyze
+ * @returns {Object} Analysis result with column fill rates
+ */
+function testXColumnCompleteness(spreadsheetId, rowCount = 50) {
+  console.log('=== X Column Completeness Test ===\n');
+
+  try {
+    // Get spreadsheet
+    let ss;
+    if (spreadsheetId) {
+      ss = SpreadsheetApp.openById(spreadsheetId);
+    } else {
+      // Find most recent ClipPulse spreadsheet
+      const files = DriveApp.searchFiles('title contains "ClipPulse_" and mimeType = "application/vnd.google-apps.spreadsheet"');
+      if (!files.hasNext()) {
+        console.log('ERROR: No ClipPulse spreadsheet found');
+        return { success: false, error: 'No spreadsheet found' };
+      }
+      // Get the most recent one
+      let mostRecent = files.next();
+      while (files.hasNext()) {
+        const file = files.next();
+        if (file.getDateCreated() > mostRecent.getDateCreated()) {
+          mostRecent = file;
+        }
+      }
+      ss = SpreadsheetApp.openById(mostRecent.getId());
+      console.log('Using spreadsheet:', mostRecent.getName());
+    }
+
+    const sheet = ss.getSheetByName('X');
+    if (!sheet) {
+      console.log('ERROR: X sheet not found');
+      return { success: false, error: 'X sheet not found' };
+    }
+
+    // Get data
+    const lastRow = sheet.getLastRow();
+    const dataRows = Math.min(rowCount, lastRow - 1);
+    if (dataRows <= 0) {
+      console.log('No data rows found');
+      return { success: false, error: 'No data rows' };
+    }
+
+    console.log(`Analyzing ${dataRows} rows...\n`);
+
+    const headers = sheet.getRange(1, 1, 1, X_COLUMNS.length).getValues()[0];
+    const data = sheet.getRange(2, 1, dataRows, X_COLUMNS.length).getValues();
+
+    // Calculate fill rate for each column
+    const results = {};
+    const warnings = [];
+
+    headers.forEach((header, colIndex) => {
+      let filledCount = 0;
+      data.forEach(row => {
+        const value = row[colIndex];
+        if (value !== '' && value !== null && value !== undefined) {
+          filledCount++;
+        }
+      });
+
+      const fillRate = (filledCount / dataRows * 100).toFixed(1);
+      results[header] = {
+        filled: filledCount,
+        total: dataRows,
+        rate: parseFloat(fillRate)
+      };
+
+      // Log result
+      const status = fillRate >= 80 ? '✓' : (fillRate >= 50 ? '△' : '✗');
+      console.log(`${status} ${header}: ${fillRate}% (${filledCount}/${dataRows})`);
+
+      // Track warnings for low fill rate
+      if (parseFloat(fillRate) < 50) {
+        warnings.push({ column: header, rate: parseFloat(fillRate) });
+      }
+    });
+
+    // Summary
+    console.log('\n--- Summary ---');
+    if (warnings.length > 0) {
+      console.log('⚠️ Low fill rate columns (<50%):');
+      warnings.forEach(w => console.log(`  - ${w.column}: ${w.rate}%`));
+    } else {
+      console.log('✓ All columns have acceptable fill rates');
+    }
+
+    return {
+      success: true,
+      platform: 'x',
+      rowsAnalyzed: dataRows,
+      columns: results,
+      warnings: warnings
+    };
+
+  } catch (e) {
+    console.log('Error:', e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * 欠損カラムを分析してログ出力
+ * Instagram/X両方を分析
+ * @param {string} [spreadsheetId] - Optional spreadsheet ID
+ * @param {number} [rowCount=50] - Number of rows to analyze
+ * @returns {Object} Combined analysis result
+ */
+function analyzeColumnGaps(spreadsheetId, rowCount = 50) {
+  console.log('╔════════════════════════════════════════════════════════╗');
+  console.log('║        Column Gap Analysis - All Platforms             ║');
+  console.log('╚════════════════════════════════════════════════════════╝\n');
+
+  const instagramResult = testInstagramColumnCompleteness(spreadsheetId, rowCount);
+
+  console.log('\n' + '═'.repeat(60) + '\n');
+
+  const xResult = testXColumnCompleteness(spreadsheetId, rowCount);
+
+  // Combined summary
+  console.log('\n' + '═'.repeat(60));
+  console.log('                    COMBINED SUMMARY');
+  console.log('═'.repeat(60) + '\n');
+
+  const allWarnings = [];
+
+  if (instagramResult.success && instagramResult.warnings.length > 0) {
+    console.log('Instagram issues:');
+    instagramResult.warnings.forEach(w => {
+      console.log(`  ⚠️ ${w.column}: ${w.rate}%`);
+      allWarnings.push({ platform: 'instagram', ...w });
+    });
+  }
+
+  if (xResult.success && xResult.warnings.length > 0) {
+    console.log('X issues:');
+    xResult.warnings.forEach(w => {
+      console.log(`  ⚠️ ${w.column}: ${w.rate}%`);
+      allWarnings.push({ platform: 'x', ...w });
+    });
+  }
+
+  if (allWarnings.length === 0) {
+    console.log('✓ No critical column gaps detected');
+  } else {
+    console.log(`\n⚠️ Total issues found: ${allWarnings.length}`);
+  }
+
+  return {
+    success: instagramResult.success || xResult.success,
+    instagram: instagramResult,
+    x: xResult,
+    totalWarnings: allWarnings.length,
+    allWarnings: allWarnings
+  };
+}

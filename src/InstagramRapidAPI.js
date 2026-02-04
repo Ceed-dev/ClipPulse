@@ -427,15 +427,20 @@ function testInstagramRapidAPI() {
 }
 
 /**
- * Download video from URL obtained via RapidAPI
+ * Download video from URL obtained via RapidAPI and save to Drive folder
  * @param {string} videoUrl - Video URL from normalizeRapidAPIPost (video_url field)
- * @param {string} filename - Desired filename for the downloaded video
- * @returns {Object} { success: boolean, blob?: Blob, filename?: string, contentType?: string, size?: number, error?: string }
+ * @param {GoogleAppsScript.Drive.Folder} postFolder - Drive folder to save the video
+ * @param {string} filename - Desired filename for the downloaded video (without extension)
+ * @returns {Object} { success: boolean, file?: GoogleAppsScript.Drive.File, filename?: string, contentType?: string, size?: number, error?: string }
  */
-function downloadVideoFromRapidAPI(videoUrl, filename) {
+function downloadVideoFromRapidAPI(videoUrl, postFolder, filename) {
   // Validate inputs
   if (!videoUrl) {
     return { success: false, error: 'Video URL is required' };
+  }
+
+  if (!postFolder) {
+    return { success: false, error: 'Post folder is required' };
   }
 
   if (!filename) {
@@ -491,19 +496,29 @@ function downloadVideoFromRapidAPI(videoUrl, filename) {
       // Continue anyway - some CDNs return incorrect content-type
     }
 
-    // Set filename on blob
+    // Set filename on blob (ensure .mp4 extension)
     const sanitizedFilename = sanitizeFilename(filename);
-    blob.setName(sanitizedFilename);
+    const finalFilename = sanitizedFilename.endsWith('.mp4') ? sanitizedFilename : sanitizedFilename + '.mp4';
+    blob.setName(finalFilename);
 
-    console.log(`[DEBUG] Video downloaded successfully: ${sanitizedFilename} (${(size / 1024 / 1024).toFixed(2)}MB)`);
+    console.log(`[DEBUG] Video downloaded successfully: ${finalFilename} (${(size / 1024 / 1024).toFixed(2)}MB)`);
 
-    return {
-      success: true,
-      blob: blob,
-      filename: sanitizedFilename,
-      contentType: contentType,
-      size: size
-    };
+    // Save blob to Drive folder
+    try {
+      const file = postFolder.createFile(blob);
+      console.log(`[DEBUG] Video saved to Drive: ${file.getName()} (ID: ${file.getId()})`);
+
+      return {
+        success: true,
+        file: file,
+        filename: finalFilename,
+        contentType: contentType,
+        size: size
+      };
+    } catch (saveError) {
+      console.error(`[DEBUG] Failed to save video to Drive: ${saveError.message}`);
+      return { success: false, error: `Failed to save video to Drive: ${saveError.message}` };
+    }
 
   } catch (e) {
     console.error(`[DEBUG] Video download error: ${e.message}`);
