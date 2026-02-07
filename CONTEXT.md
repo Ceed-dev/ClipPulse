@@ -909,3 +909,50 @@ Major refactoring session to rename `drive_url` to `ref_url` and add Instagram v
 - Run E2E tests via Apps Script to verify column completeness
 - Monitor actual data collection results
 - Consider alternative APIs for unavailable Instagram fields if needed
+
+### 2026-02-05 - LLM Planner Fix: Platform Selection & Count Accuracy
+
+**Participants:** Human + Claude Opus 4.5
+
+**Context:**
+User tested via WebUI with instruction "Fetch 5 tweets about skincare trends" but the system:
+1. Collected from BOTH Instagram AND X instead of X only
+2. Collected 30 posts instead of the requested 5
+
+**Root Cause Analysis:**
+
+1. **System prompt too weak** - The GPT-4o system prompt said "If user doesn't specify a platform, collect from BOTH" but didn't emphasize that mentioning "tweets" means X ONLY. The LLM was defaulting to both platforms.
+
+2. **Post-processing overwrote GPT's output** - Even if GPT correctly returned `targetCounts.x: 5`, the fallback logic `(plan.targetCounts.x || defaultCount)` would use `defaultCount` (30) whenever GPT returned a falsy value, and `||` treats `0` as falsy too.
+
+3. **Fallback plan "posts" detection** - The `createFallbackPlan` function treated the word "posts" as an Instagram indicator, causing false positives.
+
+**Fixes Applied:**
+
+1. **LLMPlanner.js - System Prompt Enhancement** (line ~176):
+   - Added "CRITICAL RULES" with explicit platform selection logic
+   - Added concrete examples (e.g., "Fetch 5 tweets about skincare" → x only, count 5)
+   - Emphasized that counts must be EXACTLY what user specified
+   - Told GPT to set targetCounts to 0 for platforms NOT requested
+
+2. **LLMPlanner.js - Post-processing Fix** (line ~246):
+   - Changed from `plan.targetCounts.x || defaultCount` to explicit check:
+     `(plan.targetCounts.x && plan.targetCounts.x > 0) ? plan.targetCounts.x : defaultCount`
+   - If platform is NOT in targetPlatforms, force count to 0
+   - Added debug logging for parsed plan
+
+3. **LLMPlanner.js - Fallback Plan Fix** (line ~330):
+   - Removed "posts" from Instagram detection (it's ambiguous)
+   - Changed X detection to use "tweet" (stem) instead of " x " (too short/ambiguous)
+   - Improved count regex to handle "5 Instagram posts" patterns
+
+**Also Investigated:**
+- Instagram video download issue - code has correct 3-tier fallback (RapidAPI → direct download → watch.html). Issue is likely API-side (RapidAPI not returning video_url for some posts). No code change needed.
+
+**Files Modified:**
+- src/LLMPlanner.js - System prompt, post-processing logic, fallback plan
+
+**Next Steps:**
+- Test with various natural language inputs to verify fix
+- Monitor GPT-4o responses via debug logs
+- If Instagram video issue persists, investigate RapidAPI response data

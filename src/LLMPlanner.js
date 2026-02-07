@@ -177,25 +177,35 @@ function parseInstructionToPlan(instruction) {
 
 Your task is to parse the user's natural language instruction and create a structured data collection plan.
 
-Guidelines:
-1. Extract keywords, hashtags, and any specific creator handles mentioned
-2. Determine which platforms to collect from:
-   - If user mentions "Twitter", "X", "tweets", or "@username" → include X
-   - If user mentions "Instagram", "IG", "posts", "#hashtag" → include Instagram
-   - If user doesn't specify a platform, collect from BOTH Instagram AND X
-3. Determine target counts per platform (default: ${defaultCount} each)
-4. Identify any time window preferences (e.g., "last 7 days", "this month")
-5. Suggest a query strategy based on the instruction
+CRITICAL RULES - Follow these strictly:
 
-For X (Twitter) queries:
-- Use keywords and hashtags
-- For specific users, use "from:username" syntax
-- Support date ranges with "since:" and "until:"
-- queryType can be "Latest" (recent tweets) or "Top" (popular tweets)
+1. **Platform Selection (MOST IMPORTANT)**:
+   - If user mentions "tweets", "Twitter", "X" → ONLY include "x" in targetPlatforms. Do NOT include "instagram".
+   - If user mentions "Instagram", "IG", "reels", "#hashtag" → ONLY include "instagram" in targetPlatforms. Do NOT include "x".
+   - If user mentions BOTH platforms or does NOT mention any specific platform → include both "instagram" and "x".
+   - NEVER add a platform the user did not ask for. Be precise.
 
-If the user doesn't specify a count, use ${defaultCount} per platform.
-If hashtags are mentioned (with or without #), include them in the hashtags array without the # symbol.
-If @ mentions are found, extract them as potential usernames.
+2. **Target Counts (VERY IMPORTANT)**:
+   - If user specifies a number (e.g., "5 tweets", "10 posts", "fetch 20") → use EXACTLY that number for the relevant platform.
+   - Set targetCounts to 0 for platforms NOT in targetPlatforms.
+   - Only use ${defaultCount} as default when user does NOT specify any count.
+
+3. **Keywords & Hashtags**:
+   - Extract keywords, hashtags, and any specific creator handles mentioned.
+   - If hashtags are mentioned (with or without #), include them in the hashtags array without the # symbol.
+   - If @ mentions are found, extract them as potential usernames.
+
+4. **Time Window**: Identify any time window preferences (e.g., "last 7 days", "this month").
+
+5. **Query Strategy**:
+   - For X: Use keywords and hashtags. For specific users, use "from:username" syntax.
+   - queryType can be "Latest" (recent tweets) or "Top" (popular tweets).
+
+Examples:
+- "Fetch 5 tweets about skincare trends" → targetPlatforms: ["x"], targetCounts: { x: 5, instagram: 0 }
+- "Collect 10 Instagram posts about food" → targetPlatforms: ["instagram"], targetCounts: { instagram: 10, x: 0 }
+- "Get 20 posts about AI" → targetPlatforms: ["instagram", "x"], targetCounts: { instagram: 20, x: 20 }
+- "Find tweets from @elonmusk" → targetPlatforms: ["x"], targetCounts: { x: ${defaultCount}, instagram: 0 }
 
 Current date: ${new Date().toISOString().split('T')[0]}`;
 
@@ -234,13 +244,25 @@ Return a structured JSON plan.`;
     }
 
     plan.targetCounts = plan.targetCounts || {};
-    plan.targetCounts.instagram = plan.targetPlatforms.includes('instagram')
-      ? (plan.targetCounts.instagram || plan.target_count || defaultCount)
-      : 0;
-    plan.targetCounts.x = plan.targetPlatforms.includes('x')
-      ? (plan.targetCounts.x || plan.target_count || defaultCount)
-      : 0;
+    // Respect the count returned by GPT. Only fall back to defaultCount if the platform
+    // is requested but GPT returned no count (0 or missing).
+    if (plan.targetPlatforms.includes('instagram')) {
+      plan.targetCounts.instagram = (plan.targetCounts.instagram && plan.targetCounts.instagram > 0)
+        ? plan.targetCounts.instagram
+        : defaultCount;
+    } else {
+      plan.targetCounts.instagram = 0;
+    }
+    if (plan.targetPlatforms.includes('x')) {
+      plan.targetCounts.x = (plan.targetCounts.x && plan.targetCounts.x > 0)
+        ? plan.targetCounts.x
+        : defaultCount;
+    } else {
+      plan.targetCounts.x = 0;
+    }
     plan.targetCounts.tiktok = 0; // TikTok disabled
+
+    console.log(`[DEBUG] LLM plan parsed: platforms=${JSON.stringify(plan.targetPlatforms)}, counts=ig:${plan.targetCounts.instagram}, x:${plan.targetCounts.x}`);
 
     // Process keywords - split multi-word strings into individual words
     let keywords = plan.keywords || [];
@@ -299,14 +321,15 @@ function createFallbackPlan(instruction, defaultCount) {
     .filter(w => w.length > 3)
     .filter(w => !['find', 'collect', 'get', 'posts', 'videos', 'tweets', 'about', 'from', 'with', 'only', 'twitter', 'instagram'].includes(w));
 
-  // Extract count if mentioned
-  const countMatch = instruction.match(/(\d+)\s*(posts?|tweets?)/i);
+  // Extract count if mentioned (supports "5 tweets", "fetch 10 posts", "get 20 Instagram posts")
+  const countMatch = instruction.match(/(\d+)\s*(?:\w+\s+)*(posts?|tweets?|reels?)/i);
   const count = countMatch ? parseInt(countMatch[1]) : defaultCount;
 
   // Determine platforms from instruction
   const lowerInstruction = instruction.toLowerCase();
-  const mentionsInstagram = lowerInstruction.includes('instagram') || lowerInstruction.includes(' ig ') || lowerInstruction.includes('posts');
-  const mentionsX = lowerInstruction.includes('twitter') || lowerInstruction.includes(' x ') || lowerInstruction.includes('tweets') || usernames.length > 0;
+  const mentionsInstagram = lowerInstruction.includes('instagram') || lowerInstruction.includes(' ig ') || lowerInstruction.includes('reels');
+  const mentionsX = lowerInstruction.includes('twitter') || lowerInstruction.includes('tweet') || usernames.length > 0;
+  // Note: "posts" alone is ambiguous - don't use it to determine platform
 
   // Default to both platforms if none specified
   const platforms = [];
